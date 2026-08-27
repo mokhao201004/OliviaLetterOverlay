@@ -4,6 +4,8 @@
 
 > 本项目使用来自 [1Dreamer666/olivia-lin](https://github.com/1Dreamer666/olivia-lin) 的人设素材；该项目采用 AGPL-3.0 许可，因此本项目也按 AGPL-3.0 发布，详见 `THIRD_PARTY_NOTICES.md`。
 
+完整图文流程、模型配置、人设分析、记忆、主动来信和常见问题见 [使用教程](TUTORIAL.md)。
+
 ## 功能
 
 - 书信式聊天：来信与回信渲染为可下载/分享的信纸图片。
