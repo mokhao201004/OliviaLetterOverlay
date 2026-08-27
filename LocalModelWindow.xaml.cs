@@ -21,7 +21,9 @@ public partial class LocalModelWindow : Window
         DeviceRecommendationText.Text = LocalModelCatalog.GetDeviceRecommendation();
         InstallDirectoryBox.Text = OllamaPreferencesStore.Load().InstallDirectory;
         ModelPicker.ItemsSource = LocalModelCatalog.Models;
-        ModelPicker.SelectedItem = LocalModelCatalog.Models.FirstOrDefault(option => option.Model == SelectedModel) ?? LocalModelCatalog.Models[2];
+        ModelPicker.SelectedItem = LocalModelCatalog.Models.FirstOrDefault(option => option.Model == SelectedModel)
+            ?? LocalModelCatalog.Models.FirstOrDefault(option => option.Model == "qwen3:4b")
+            ?? LocalModelCatalog.Models[0];
         UpdateModelDetail();
         Loaded += async (_, _) => await RefreshInstalledModelsAsync();
     }
@@ -67,6 +69,53 @@ public partial class LocalModelWindow : Window
         {
             DownloadButton.IsEnabled = true;
         }
+    }
+
+    private async void DownloadCustomButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var model = NormalizeCustomModel();
+        if (string.IsNullOrEmpty(model))
+        {
+            return;
+        }
+
+        try
+        {
+            DownloadButton.IsEnabled = false;
+            DownloadCustomButton.IsEnabled = false;
+            var progress = new Progress<string>(message => StatusText.Text = message);
+            await OllamaClient.PullModelAsync(SelectedBaseUrl, model, progress, CancellationToken.None);
+            StatusText.Text = $"{model} 下载完成，可以直接使用。";
+            SelectedModel = model;
+            await RefreshInstalledModelsAsync();
+        }
+        catch (Exception exception)
+        {
+            StatusText.Text = exception.Message;
+        }
+        finally
+        {
+            DownloadButton.IsEnabled = true;
+            DownloadCustomButton.IsEnabled = true;
+        }
+    }
+
+    private string NormalizeCustomModel()
+    {
+        var model = CustomModelBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            StatusText.Text = "要下载预设外的模型，请先填写模型名，例如 llama3.2:3b。";
+            return string.Empty;
+        }
+
+        if (model.Any(char.IsWhiteSpace) || model.Length > 200)
+        {
+            StatusText.Text = "模型名格式不正确。请填写 Ollama 模型名，例如 qwen3:4b。";
+            return string.Empty;
+        }
+
+        return model;
     }
 
     private void DownloadOllamaButton_OnClick(object sender, RoutedEventArgs e)
@@ -151,7 +200,11 @@ public partial class LocalModelWindow : Window
         }
     }
 
-    private void ModelPicker_OnSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateModelDetail();
+    private void ModelPicker_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        CustomModelBox.Text = string.Empty;
+        UpdateModelDetail();
+    }
 
     private void InstalledModelsBox_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -165,6 +218,10 @@ public partial class LocalModelWindow : Window
         {
             ModelPicker.SelectedItem = knownModel;
         }
+        else
+        {
+            CustomModelBox.Text = model;
+        }
     }
 
     private void UpdateModelDetail()
@@ -177,9 +234,18 @@ public partial class LocalModelWindow : Window
 
     private void UseModelButton_OnClick(object sender, RoutedEventArgs e)
     {
+        var customModel = NormalizeCustomModel();
+        if (!string.IsNullOrWhiteSpace(customModel))
+        {
+            SelectedModel = customModel;
+            DialogResult = true;
+            Close();
+            return;
+        }
+
         if (ModelPicker.SelectedItem is not LocalModelOption model)
         {
-            StatusText.Text = "请选择一个本地模型。";
+            StatusText.Text = "请选择一个本地模型，或填写自定义模型名。";
             return;
         }
 
@@ -206,3 +272,4 @@ public partial class LocalModelWindow : Window
         }
     }
 }
+

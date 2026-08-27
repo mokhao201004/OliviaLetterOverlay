@@ -50,6 +50,19 @@
                     <ComboBox x:Name="ModelPicker" Style="{StaticResource DarkComboBox}" Height="40" Margin="0,7,0,0" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="13" DisplayMemberPath="Title" SelectionChanged="ModelPicker_OnSelectionChanged" />
                     <TextBlock x:Name="ModelDetailText" Margin="1,7,0,0" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
 
+                    <TextBlock Margin="0,17,0,0" Text="自定义模型（可选）" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
+                    <Grid Margin="0,7,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="118" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="CustomModelBox" Height="39" Padding="10,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                        <Button x:Name="DownloadCustomButton" Grid.Column="1" Height="39" Margin="9,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="下载模型" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="DownloadCustomButton_OnClick">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
+                        </Button>
+                    </Grid>
+                    <TextBlock Margin="1,6,0,0" Text="填写 Ollama 官方库里的模型名，例如 llama3.2:3b、gemma3:12b 或 deepseek-r1:14b。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
+
                     <StackPanel Margin="0,17,0,0" Orientation="Horizontal">
                         <Button x:Name="DownloadButton" Width="118" Height="36" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="下载所选模型" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" Click="DownloadButton_OnClick">
                             <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="18" /></Style></Button.Resources>

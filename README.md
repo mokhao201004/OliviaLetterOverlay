@@ -7,7 +7,7 @@
 ## 功能
 
 - 书信式聊天：来信与回信渲染为可下载/分享的信纸图片。
-- 多模型接入：MiMo、OpenAI 兼容接口、本地 Ollama。
+- 多模型接入：MiMo、OpenAI 兼容接口、本地 Ollama；兼容接口可从 `/v1/models` 获取模型列表，并内置常见模型预设。
 - 本地模型管理：可下载和选择适合设备的 Ollama 模型。
 - 人设分析：上传参考聊天图片，提取人设、记忆和参考信件。
 - 记忆与主动来信：支持长期记忆，主动来信间隔最低 10 分钟。
@@ -16,7 +16,7 @@
 
 ## 下载与运行
 
-1. 从 Releases 下载 `OliviaLetterOverlay-1.0.0-win-x64.zip`。
+1. 从 Releases 下载 `OliviaLetterOverlay-1.0.1-win-x64.zip`。
 2. 解压到任意目录。
 3. 双击 `OliviaLetterOverlay.exe`。
 
@@ -64,4 +64,5 @@ dotnet publish .\OliviaLetterOverlay.csproj -c Release -r win-x64 --self-contain
 ## 许可
 
 本项目基于 AGPL-3.0 许可发布，详见 `LICENSE`。这是独立本地工具，不是官方客户端，也不代表原作品作者或发行方。
+
 

@@ -20,6 +20,7 @@ public partial class ApiSettingsWindow : Window
         };
         CompatibleBaseUrlBox.Text = _settings.Provider == AiProviderKind.OpenAiCompatible ? _settings.BaseUrl : string.Empty;
         CompatibleModelBox.Text = _settings.Provider == AiProviderKind.OpenAiCompatible ? _settings.Model : string.Empty;
+        CompatibleModelBox.ItemsSource = ApiModelCatalog.Presets;
         OllamaModelBox.Text = _settings.Provider == AiProviderKind.Ollama ? _settings.Model : "qwen3:4b";
         AutoLetterMinutesBox.Text = AutoLetterStore.Load().IntervalMinutes.ToString();
         UpdateProviderPanels();
@@ -34,6 +35,32 @@ public partial class ApiSettingsWindow : Window
     };
 
     private void ProviderCombo_OnSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateProviderPanels();
+
+    private async void RefreshCompatibleModelsButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var baseUrl = AiProviderStore.NormalizeBaseUrl(CompatibleBaseUrlBox.Text);
+        var apiKey = string.IsNullOrWhiteSpace(CompatibleApiKeyBox.Password)
+            ? AiProviderStore.GetCompatibleApiKey()
+            : CompatibleApiKeyBox.Password;
+
+        try
+        {
+            RefreshCompatibleModelsButton.IsEnabled = false;
+            StatusText.Text = "正在从接口获取模型列表…";
+            var models = await ApiModelCatalog.ListOpenAiCompatibleModelsAsync(baseUrl, apiKey);
+            CompatibleModelBox.ItemsSource = models;
+            CompatibleModelBox.IsDropDownOpen = true;
+            StatusText.Text = $"获取到 {models.Count} 个模型。";
+        }
+        catch (Exception exception)
+        {
+            StatusText.Text = exception.Message;
+        }
+        finally
+        {
+            RefreshCompatibleModelsButton.IsEnabled = true;
+        }
+    }
 
     private void UpdateProviderPanels()
     {
@@ -154,3 +181,4 @@ public partial class ApiSettingsWindow : Window
         }
     }
 }
+
