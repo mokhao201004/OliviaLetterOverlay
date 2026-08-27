@@ -40,33 +40,65 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
-                            <ToggleButton x:Name="ToggleButton"
-                                          Background="{TemplateBinding Background}"
-                                          BorderBrush="{TemplateBinding BorderBrush}"
-                                          BorderThickness="{TemplateBinding BorderThickness}"
-                                          Foreground="{TemplateBinding Foreground}"
-                                          Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource TemplatedParent}}"
-                                          ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource TemplatedParent}}"
-                                          ContentTemplateSelector="{Binding ItemTemplateSelector, RelativeSource={RelativeSource TemplatedParent}}"
-                                          ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource TemplatedParent}}"
+                            <Border x:Name="Surface"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="6" />
+                            <ToggleButton x:Name="ClickSurface"
+                                          Background="Transparent"
+                                          BorderThickness="0"
                                           Focusable="False"
                                           IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
                                           ClickMode="Press">
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="ToggleButton">
-                                        <Border x:Name="ToggleSurface" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="SelectedItemPresenter"
+                                              Margin="10,0,33,0"
+                                              Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ContentTemplate="{Binding SelectionBoxItemTemplate, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ContentTemplateSelector="{Binding ItemTemplateSelector, RelativeSource={RelativeSource TemplatedParent}}"
+                                              ContentStringFormat="{Binding SelectionBoxItemStringFormat, RelativeSource={RelativeSource TemplatedParent}}"
+                                              HorizontalAlignment="Stretch"
+                                              IsHitTestVisible="False"
+                                              TextElement.Foreground="{TemplateBinding Foreground}"
+                                              VerticalAlignment="Center" />
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Margin="1"
+                                     Padding="9,0,0,0"
+                                     Background="#FF15171B"
+                                     BorderThickness="0"
+                                     CaretBrush="#FFF0EEEB"
+                                     Foreground="{TemplateBinding Foreground}"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"
+                                     Visibility="Collapsed"
+                                     VerticalContentAlignment="Center" />
+                            <ToggleButton x:Name="ToggleButton"
+                                          Width="31"
+                                          Margin="0,1,1,1"
+                                          HorizontalAlignment="Right"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ToggleSurface" Background="{TemplateBinding Background}" CornerRadius="5">
                                             <Grid>
-                                                <ContentPresenter Margin="10,0,33,0" TextElement.Foreground="{TemplateBinding Foreground}" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}" ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}" ContentStringFormat="{TemplateBinding ContentStringFormat}" VerticalAlignment="Center" />
                                                 <TextBlock Margin="0,0,12,0" HorizontalAlignment="Right" VerticalAlignment="Center" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#FFAEB1B7" Text="&#xE70D;" />
                                             </Grid>
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ToggleSurface" Property="BorderBrush" Value="#FF757983" />
+                                                <Setter TargetName="ToggleSurface" Property="Background" Value="#FF34363D" />
                                             </Trigger>
                                             <Trigger Property="IsChecked" Value="True">
-                                                <Setter TargetName="ToggleSurface" Property="Background" Value="#FF1D2026" />
-                                                <Setter TargetName="ToggleSurface" Property="BorderBrush" Value="#FF777A82" />
+                                                <Setter TargetName="ToggleSurface" Property="Background" Value="#FF484A51" />
                                             </Trigger>
                                         </ControlTemplate.Triggers>
                                     </ControlTemplate>
@@ -83,8 +115,21 @@
                                         <ItemsPresenter />
                                     </ScrollViewer>
                                 </Border>
-                            </Popup>
+                             </Popup>
                         </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="#FF757983" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="#FF8A8E98" />
+                            </Trigger>
+                            <Trigger Property="IsEditable" Value="True">
+                                <Setter TargetName="ClickSurface" Property="Visibility" Value="Collapsed" />
+                                <Setter TargetName="SelectedItemPresenter" Property="Visibility" Value="Collapsed" />
+                                <Setter TargetName="PART_EditableTextBox" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>

@@ -7,40 +7,96 @@ namespace OliviaLetterOverlay;
 public partial class ApiSettingsWindow : Window
 {
     private readonly AiProviderSettings _settings;
+    private readonly List<string> _serviceIds = [];
+    private bool _suppressSelectionChanged;
 
     public ApiSettingsWindow()
     {
         InitializeComponent();
         _settings = AiProviderStore.Load();
-        ProviderCombo.SelectedIndex = _settings.Provider switch
+
+        _serviceIds.Add("mimo");
+        ProviderCombo.Items.Add("MiMo 官方接口");
+        foreach (var provider in CloudProviderCatalog.Providers)
         {
-            AiProviderKind.OpenAiCompatible => 1,
-            AiProviderKind.Ollama => 2,
-            _ => 0,
+            _serviceIds.Add(provider.Id);
+            ProviderCombo.Items.Add(provider.DisplayName);
+        }
+
+        _serviceIds.Add("ollama");
+        ProviderCombo.Items.Add("本地 Ollama");
+
+        var selectedServiceId = _settings.Provider switch
+        {
+            AiProviderKind.Mimo => "mimo",
+            AiProviderKind.Ollama => "ollama",
+            _ => _settings.CloudProviderId,
         };
+        var serviceIndex = _serviceIds.FindIndex(id => string.Equals(id, selectedServiceId, StringComparison.OrdinalIgnoreCase));
+        _suppressSelectionChanged = true;
+        ProviderCombo.SelectedIndex = serviceIndex < 0 ? 0 : serviceIndex;
+        _suppressSelectionChanged = false;
+
         CompatibleBaseUrlBox.Text = _settings.Provider == AiProviderKind.OpenAiCompatible ? _settings.BaseUrl : string.Empty;
         CompatibleModelBox.Text = _settings.Provider == AiProviderKind.OpenAiCompatible ? _settings.Model : string.Empty;
-        CompatibleModelBox.ItemsSource = ApiModelCatalog.Presets;
+        CompatibleModelBox.ItemsSource = null;
         OllamaModelBox.Text = _settings.Provider == AiProviderKind.Ollama ? _settings.Model : "qwen3:4b";
         AutoLetterMinutesBox.Text = AutoLetterStore.Load().IntervalMinutes.ToString();
         UpdateProviderPanels();
         Loaded += (_, _) => ProviderCombo.Focus();
     }
 
-    private AiProviderKind SelectedProvider => ProviderCombo.SelectedIndex switch
+    private string SelectedServiceId => ProviderCombo.SelectedIndex >= 0 && ProviderCombo.SelectedIndex < _serviceIds.Count
+        ? _serviceIds[ProviderCombo.SelectedIndex]
+        : "mimo";
+
+    private AiProviderKind SelectedProvider => SelectedServiceId switch
     {
-        1 => AiProviderKind.OpenAiCompatible,
-        2 => AiProviderKind.Ollama,
-        _ => AiProviderKind.Mimo,
+        "ollama" => AiProviderKind.Ollama,
+        "mimo" => AiProviderKind.Mimo,
+        _ => AiProviderKind.OpenAiCompatible,
     };
 
-    private void ProviderCombo_OnSelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateProviderPanels();
+    private void ProviderCombo_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_suppressSelectionChanged)
+        {
+            return;
+        }
+
+        ApplySelectedCloudServicePreset();
+        UpdateProviderPanels();
+    }
+
+    private void ApplySelectedCloudServicePreset()
+    {
+        if (SelectedProvider != AiProviderKind.OpenAiCompatible)
+        {
+            return;
+        }
+
+        var provider = CloudProviderCatalog.Find(SelectedServiceId);
+        if (provider is null)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(provider.BaseUrl))
+        {
+            CompatibleBaseUrlBox.Text = provider.BaseUrl;
+        }
+
+        CompatibleModelBox.Text = string.Empty;
+        CompatibleModelBox.ItemsSource = null;
+        StatusText.Text = $"{provider.DisplayName}：填写 API Key 后可获取模型列表。";
+    }
 
     private async void RefreshCompatibleModelsButton_OnClick(object sender, RoutedEventArgs e)
     {
         var baseUrl = AiProviderStore.NormalizeBaseUrl(CompatibleBaseUrlBox.Text);
+        var serviceSettings = new AiProviderSettings { Provider = AiProviderKind.OpenAiCompatible, CloudProviderId = SelectedServiceId };
         var apiKey = string.IsNullOrWhiteSpace(CompatibleApiKeyBox.Password)
-            ? AiProviderStore.GetCompatibleApiKey()
+            ? AiProviderStore.GetCompatibleApiKey(serviceSettings)
             : CompatibleApiKeyBox.Password;
 
         try
@@ -50,7 +106,7 @@ public partial class ApiSettingsWindow : Window
             var models = await ApiModelCatalog.ListOpenAiCompatibleModelsAsync(baseUrl, apiKey);
             CompatibleModelBox.ItemsSource = models;
             CompatibleModelBox.IsDropDownOpen = true;
-            StatusText.Text = $"获取到 {models.Count} 个模型。";
+            StatusText.Text = $"{CloudProviderCatalog.DisplayName(SelectedServiceId)} 返回 {models.Count} 个模型。";
         }
         catch (Exception exception)
         {
@@ -75,10 +131,18 @@ public partial class ApiSettingsWindow : Window
         StatusText.Text = SelectedProvider switch
         {
             AiProviderKind.Mimo => AiProviderStore.GetMimoApiKey() is null ? "尚未配置 MiMo API Key。" : "已检测到 MiMo API Key。",
-            AiProviderKind.OpenAiCompatible => AiProviderStore.GetCompatibleApiKey() is null ? "填写 URL、模型名和 API Key 后保存。" : "已检测到兼容接口 API Key；留空不会覆盖。",
+            AiProviderKind.OpenAiCompatible => CreateCompatibleStatusText(),
             AiProviderKind.Ollama => "Ollama 不需要 API Key，但模型下载完成后需保持本地服务运行。",
             _ => string.Empty,
         };
+    }
+
+    private string CreateCompatibleStatusText()
+    {
+        var name = CloudProviderCatalog.DisplayName(SelectedServiceId);
+        return AiProviderStore.GetCompatibleApiKey(new AiProviderSettings { CloudProviderId = SelectedServiceId }) is null
+            ? $"填写 {name} 的 URL、模型名和 API Key 后保存。"
+            : $"已检测到 {name} API Key；留空不会覆盖。";
     }
 
     private void SaveButton_OnClick(object sender, RoutedEventArgs e)
@@ -90,7 +154,7 @@ public partial class ApiSettingsWindow : Window
         }
 
         var provider = SelectedProvider;
-        var settings = new AiProviderSettings { Provider = provider };
+        var settings = new AiProviderSettings { Provider = provider, CloudProviderId = SelectedServiceId };
         switch (provider)
         {
             case AiProviderKind.Mimo:
@@ -110,7 +174,7 @@ public partial class ApiSettingsWindow : Window
 
                 if (!string.IsNullOrWhiteSpace(CompatibleApiKeyBox.Password))
                 {
-                    AiProviderStore.SaveCompatibleApiKey(CompatibleApiKeyBox.Password);
+                    AiProviderStore.SaveCompatibleApiKey(settings, CompatibleApiKeyBox.Password);
                 }
                 break;
             case AiProviderKind.Ollama:

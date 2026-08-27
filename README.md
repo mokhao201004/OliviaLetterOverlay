@@ -7,7 +7,7 @@
 ## 功能
 
 - 书信式聊天：来信与回信渲染为可下载/分享的信纸图片。
-- 多模型接入：MiMo、OpenAI 兼容接口、本地 Ollama；兼容接口可从 `/v1/models` 获取模型列表，并内置常见模型预设。
+- 多模型接入：MiMo、常见云端服务商、OpenAI 兼容接口/中转站、本地 Ollama。内置 OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot Kimi、智谱 GLM、阿里云百炼 Qwen、火山方舟、xAI Grok、Mistral、Groq、OpenRouter、SiliconFlow、Together AI 预设。
 - 本地模型管理：可下载和选择适合设备的 Ollama 模型。
 - 人设分析：上传参考聊天图片，提取人设、记忆和参考信件。
 - 记忆与主动来信：支持长期记忆，主动来信间隔最低 10 分钟。
@@ -27,7 +27,7 @@
 点击右上角设置按钮：
 
 - **MiMo**：填写 API Key，模型固定为 `mimo-v2.5`。
-- **OpenAI 兼容接口**：填写 Base URL、模型名和 API Key。
+- **云端服务商 / 中转站**：选择服务类型后自动填入推荐 Base URL；按需修改地址、选择或填写模型名，并填写该服务的 API Key。不同服务类型的 Key 分开保存。
 - **Ollama**：填写本地服务地址和模型名，默认 `http://127.0.0.1:11434`。
 
 API Key 保存在当前 Windows 用户本地配置中，源码和发布包不包含密钥。

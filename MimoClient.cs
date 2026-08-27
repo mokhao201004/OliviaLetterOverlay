@@ -546,7 +546,16 @@ internal static class MimoClient
 
     private static string NormalizeReply(string reply)
     {
-        var lines = reply.Replace("\r", string.Empty)
+        var normalizedSource = reply.Replace("\r", string.Empty);
+        if (normalizedSource.StartsWith("亲爱的林离", StringComparison.Ordinal) || normalizedSource.StartsWith("林离，", StringComparison.Ordinal) || normalizedSource.StartsWith("林离:", StringComparison.Ordinal))
+        {
+            var withoutGreeting = normalizedSource.StartsWith("亲爱的林离", StringComparison.Ordinal)
+                ? string.Empty
+                : normalizedSource.Split(['，', ':'], 2) is { Length: 2 } parts ? parts[1] : normalizedSource;
+            normalizedSource = string.IsNullOrWhiteSpace(withoutGreeting) ? normalizedSource : withoutGreeting.TrimStart();
+        }
+
+        var lines = normalizedSource
             .Split('\n')
             .Select(line => line.Trim())
             .Where(line => !IsMetadataLine(line))

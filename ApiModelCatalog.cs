@@ -99,9 +99,7 @@ internal static class ApiModelCatalog
             url = url[..^"/chat/completions".Length];
         }
 
-        return url.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)
-            ? url + "/models"
-            : url + "/v1/models";
+        return url + "/models";
     }
 
     private static string? ReadModelName(JsonElement item)

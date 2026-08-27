@@ -28,9 +28,6 @@
 
                     <TextBlock Margin="0,21,0,0" Text="服务类型" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
                     <ComboBox x:Name="ProviderCombo" Style="{StaticResource DarkComboBox}" Height="40" Margin="0,8,0,0" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="13" SelectionChanged="ProviderCombo_OnSelectionChanged">
-                        <ComboBoxItem Content="MiMo 官方接口" Tag="Mimo" />
-                        <ComboBoxItem Content="OpenAI 兼容接口 / 中转站" Tag="OpenAiCompatible" />
-                        <ComboBoxItem Content="本地 Ollama" Tag="Ollama" />
                     </ComboBox>
 
                     <StackPanel x:Name="MimoPanel" Margin="0,16,0,0">
@@ -49,14 +46,15 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="112" />
                             </Grid.ColumnDefinitions>
-                            <ComboBox x:Name="CompatibleModelBox" IsEditable="True" Height="39" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                            <ComboBox x:Name="CompatibleModelBox" Style="{StaticResource DarkComboBox}" IsEditable="True" Height="39" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
                             <Button x:Name="RefreshCompatibleModelsButton" Grid.Column="1" Height="39" Margin="9,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="获取列表" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="RefreshCompatibleModelsButton_OnClick">
                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
                             </Button>
                         </Grid>
+                        <TextBlock Margin="1,7,0,0" Text="先点“获取列表”选择上游模型；接口不支持列表时也可以手动填写。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
                         <TextBlock Margin="0,14,0,0" Text="API Key" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
                         <PasswordBox x:Name="CompatibleApiKeyBox" Height="42" Margin="0,8,0,0" Padding="12,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="13" VerticalContentAlignment="Center" />
-                        <TextBlock Margin="1,7,0,0" Text="采用标准 Bearer 认证；留空不会替换已保存的兼容接口 Key。图片分析仅在所选模型支持图片时可用。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
+                        <TextBlock Margin="1,7,0,0" Text="采用标准 Bearer 认证；每个服务类型的 Key 分开保存。图片分析仅在所选模型支持图片时可用。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
 
                     <StackPanel x:Name="OllamaPanel" Margin="0,16,0,0" Visibility="Collapsed">

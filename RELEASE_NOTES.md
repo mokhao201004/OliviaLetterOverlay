@@ -2,8 +2,10 @@
 
 ## 修复与增强
 
-- OpenAI 兼容接口新增“获取列表”按钮，可从 `/v1/models` 拉取当前服务可用模型。
-- 模型输入改为可编辑下拉框，既能选择上游返回的模型，也能手动填写中转站专用模型名。
-- 内置常见云端模型预设，包括 GPT、Claude、Gemini、DeepSeek、Qwen、GLM、Kimi 等常见系列。
-- 无上游列表或中转站返回非标准格式时，仍可手动填写模型名使用。
+- AI 服务类型新增常见服务商预设：OpenAI、Anthropic、Google Gemini、DeepSeek、Moonshot Kimi、智谱 GLM、阿里云百炼 Qwen、火山方舟、xAI Grok、Mistral、Groq、OpenRouter、SiliconFlow、Together AI。
+- 各服务商默认地址自动填入，地址仍可修改；自定义 OpenAI 兼容接口和中转站继续可用。
+- 模型列表按所选服务地址获取；无上游列表或接口格式不标准时，仍可手动填写模型名。
+- API Key 按服务类型分开保存，切换服务商时不会互相覆盖。
+- 修复模型名可编辑下拉框出现白底、和暗色界面不统一的问题。
+- 强化林离的第一人称身份：来信称呼“林离”时会被理解为称呼回信者，避免把角色当成第三方。
 - 保留本地 Ollama 模型管理和常见本地模型预设。
