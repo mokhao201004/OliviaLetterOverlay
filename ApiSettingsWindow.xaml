@@ -66,7 +66,7 @@
                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
                             </Button>
                         </Grid>
-                        <TextBlock Margin="1,7,0,0" Text="一键下载、选择并使用本机模型，不需要填写地址。图片人设分析请使用 MiMo 或可识图的兼容模型。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
+                        <TextBlock Margin="1,7,0,0" Text="一键下载、选择并使用本机模型，不需要填写地址。图片人设分析请使用可识图的云端模型。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
                     </StackPanel>
 
                     <TextBlock x:Name="StatusText" Margin="1,13,0,0" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />

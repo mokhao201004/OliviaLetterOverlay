@@ -21,7 +21,7 @@
             <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
                 <StackPanel>
                     <TextBlock Text="信件人设" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="21" FontWeight="Bold" />
-                    <TextBlock Margin="0,7,0,0" Text="分别选择你发出的信和收到的回信；第 1 张与第 1 张会配成一组。分析时会将所选图片发送给 MiMo。" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" />
+                    <TextBlock Margin="0,7,0,0" Text="分别选择你发出的信和收到的回信；第 1 张与第 1 张会配成一组。分析时会将所选图片发送给当前 AI 服务。" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" />
                 </StackPanel>
                 <Button Width="30" Height="30" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" Foreground="#FFAEB1B7" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE8BB;" Cursor="Hand" Click="CloseButton_OnClick" />
             </Grid>

@@ -50,7 +50,7 @@ internal static class MimoClient
         var reply = await RequestCompletionAsync(messages, 300);
 
         return string.IsNullOrWhiteSpace(reply)
-            ? throw new InvalidOperationException("MiMo 未返回可显示的回信。内容仍在本地。")
+            ? throw new InvalidOperationException("当前 AI 服务未返回可显示的回信。内容仍在本地。")
             : NormalizeReply(reply);
     }
 
@@ -82,7 +82,7 @@ internal static class MimoClient
         messages.Add(new { role = "user", content = "请写这一封主动来信。" });
         var reply = await RequestCompletionAsync(messages, 300);
         return string.IsNullOrWhiteSpace(reply)
-            ? throw new InvalidOperationException("MiMo 未返回可显示的主动来信。")
+            ? throw new InvalidOperationException("当前 AI 服务未返回可显示的主动来信。")
             : NormalizeReply(reply);
     }
 
@@ -116,7 +116,7 @@ internal static class MimoClient
         }, 700);
 
         return string.IsNullOrWhiteSpace(analysis)
-            ? throw new InvalidOperationException("MiMo 未返回可用的记忆分析。")
+            ? throw new InvalidOperationException("当前 AI 服务未返回可用的记忆分析。")
             : ParseMemories(analysis);
     }
 
@@ -156,7 +156,7 @@ internal static class MimoClient
 
         if (string.IsNullOrWhiteSpace(analysis))
         {
-            throw new InvalidOperationException("MiMo 未返回可用的人设分析。");
+            throw new InvalidOperationException("当前 AI 服务未返回可用的人设分析。");
         }
 
         return ParsePersonaKnowledge(analysis, letters);
@@ -192,7 +192,7 @@ internal static class MimoClient
         }, 1800);
 
         return string.IsNullOrWhiteSpace(transcription)
-            ? throw new InvalidOperationException("MiMo 未返回可用的文字转写。图片未写入侧边信箱。")
+            ? throw new InvalidOperationException("当前 AI 服务未返回可用的文字转写。图片未写入侧边信箱。")
             : ParseReferenceLetters(transcription);
     }
 
@@ -408,19 +408,36 @@ internal static class MimoClient
         var endpoint = settings.BaseUrl.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase)
             ? settings.BaseUrl
             : settings.BaseUrl + "/chat/completions";
-        var payload = JsonSerializer.Serialize(new
-        {
-            model = settings.Model,
-            messages,
-            max_tokens = maxCompletionTokens,
-            stream = false,
-        });
+        var isZhipu = string.Equals(settings.CloudProviderId, "zhipu", StringComparison.OrdinalIgnoreCase);
+        object payloadObject = isZhipu
+            ? new
+            {
+                model = settings.Model,
+                messages,
+                max_tokens = maxCompletionTokens,
+                stream = false,
+                reasoning_effort = "low",
+            }
+            : new
+            {
+                model = settings.Model,
+                messages,
+                max_tokens = maxCompletionTokens,
+                stream = false,
+            };
+        var payload = JsonSerializer.Serialize(payloadObject);
         using var request = CreateJsonRequest(endpoint, payload);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
         using var response = await SendAsync(request);
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException($"OpenAI 兼容接口请求失败（HTTP {(int)response.StatusCode}）。请检查 URL、模型名和中转站配置。");
+            var error = await response.Content.ReadAsStringAsync();
+            var errorDetail = string.IsNullOrWhiteSpace(error) ? string.Empty : "：" + error.Trim();
+            if (errorDetail.Length > 500)
+            {
+                errorDetail = errorDetail[..500] + "…";
+            }
+            throw new InvalidOperationException($"{AiProviderStore.ProviderLabel(settings.Provider)} 请求失败（HTTP {(int)response.StatusCode}）。请检查 URL、模型名和 API Key。{errorDetail}");
         }
 
         await using var body = await response.Content.ReadAsStreamAsync();
