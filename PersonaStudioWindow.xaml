@@ -1,0 +1,82 @@
+<Window x:Class="OliviaLetterOverlay.PersonaStudioWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="710"
+        Height="612"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        PreviewKeyDown="Window_OnPreviewKeyDown">
+    <Border Background="#FF202228" BorderBrush="#FF3C3F47" BorderThickness="1" CornerRadius="12">
+        <Grid Margin="26,23">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
+                <StackPanel>
+                    <TextBlock Text="信件人设" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="21" FontWeight="Bold" />
+                    <TextBlock Margin="0,7,0,0" Text="分别选择你发出的信和收到的回信；第 1 张与第 1 张会配成一组。分析时会将所选图片发送给 MiMo。" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" />
+                </StackPanel>
+                <Button Width="30" Height="30" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" Foreground="#FFAEB1B7" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE8BB;" Cursor="Hand" Click="CloseButton_OnClick" />
+            </Grid>
+            <Border Grid.Row="1" Height="1" Margin="0,18,0,16" Background="#FF393C44" />
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="208" />
+                    <ColumnDefinition Width="15" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="我发给她的信（按顺序）" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
+                    <ListBox x:Name="SentImagesList" Grid.Row="1" Margin="0,8,0,8" AllowDrop="True" Background="#FF17191E" BorderBrush="#FF454851" BorderThickness="1" Foreground="#FFE4E1DD" FontFamily="Microsoft YaHei UI" FontSize="12" PreviewDragOver="ImageList_OnPreviewDragOver" Drop="SentImagesList_OnDrop" />
+                    <Button Grid.Row="2" Width="109" Height="31" HorizontalAlignment="Left" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="添加我发的信" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="AddSentImagesButton_OnClick">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="17" /></Style></Button.Resources>
+                    </Button>
+                    <TextBlock Grid.Row="3" Margin="0,14,0,0" Text="她回给我的信（同顺序）" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
+                    <ListBox x:Name="ReplyImagesList" Grid.Row="4" Margin="0,8,0,8" AllowDrop="True" Background="#FF17191E" BorderBrush="#FF454851" BorderThickness="1" Foreground="#FFE4E1DD" FontFamily="Microsoft YaHei UI" FontSize="12" PreviewDragOver="ImageList_OnPreviewDragOver" Drop="ReplyImagesList_OnDrop" />
+                    <StackPanel Grid.Row="5" Orientation="Horizontal">
+                        <Button Width="109" Height="31" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="添加她回的信" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="AddReplyImagesButton_OnClick">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="17" /></Style></Button.Resources>
+                        </Button>
+                        <Button Width="68" Height="31" Margin="8,0,0,0" Background="Transparent" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFC9C9C9" Content="清空" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="ClearImagesButton_OnClick">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="17" /></Style></Button.Resources>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <TextBlock Text="人设预览" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
+                        <Button x:Name="AnalyzeButton" Width="92" Height="32" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FFE8DED4" BorderBrush="#FFE8DED4" BorderThickness="0" Foreground="#FF272526" Content="开始分析" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="12" IsEnabled="False" Click="AnalyzeButton_OnClick">
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="16" /></Style></Button.Resources>
+                        </Button>
+                    </Grid>
+                    <TextBox x:Name="AnalysisBox" Grid.Row="1" Margin="0,10,0,0" Padding="13" Background="#FF17191E" BorderBrush="#FF454851" BorderThickness="1" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontSize="13" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" />
+                </Grid>
+            </Grid>
+            <Grid Grid.Row="3" Margin="0,17,0,0">
+                <TextBlock x:Name="StatusText" MaxWidth="420" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                <Button x:Name="ApplyButton" Width="116" Height="38" HorizontalAlignment="Right" Background="#FFE8DED4" BorderBrush="#FFE8DED4" BorderThickness="0" Foreground="#FF272526" Content="启用这版人设" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" IsEnabled="False" Click="ApplyButton_OnClick">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

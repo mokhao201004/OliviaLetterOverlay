@@ -1,0 +1,258 @@
+<Window x:Class="OliviaLetterOverlay.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="1200"
+        Height="907"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="True"
+        SizeToContent="Manual"
+        MinWidth="1200"
+        MinHeight="907"
+        WindowStartupLocation="Manual"
+        WindowStyle="None"
+        PreviewKeyDown="Window_OnPreviewKeyDown">
+    <Window.Resources>
+        <Style x:Key="WindowButton" TargetType="Button">
+            <Setter Property="Width" Value="38" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FF888A91" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PillButton" TargetType="Button">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Background" Value="#FF17191E" />
+            <Setter Property="BorderBrush" Value="#FF565962" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#FFD1D3D8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="17">
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MailboxItem" TargetType="Button">
+            <Setter Property="Height" Value="62" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ItemSurface" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background" Value="#FF24272D" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#FF0F1013" BorderBrush="#FF33353A" BorderThickness="1" CornerRadius="7">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="123" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
+                <TextBlock Margin="20,52,0,0"
+                           Text="信箱"
+                           Foreground="#FFF2F0EC"
+                           FontFamily="Microsoft YaHei UI"
+                           FontSize="35"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Left"
+                           VerticalAlignment="Top" />
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,18,0" Orientation="Horizontal">
+                    <Button Style="{StaticResource WindowButton}" Content="&#xE921;" Click="MinimizeButton_OnClick" IsTabStop="False" />
+                    <Button Style="{StaticResource WindowButton}" Content="&#xE8BB;" Click="CloseButton_OnClick" IsTabStop="False" />
+                </StackPanel>
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,25" Orientation="Horizontal">
+                    <Border Width="87" Height="29" CornerRadius="6" Background="#FF453A2E">
+                        <TextBlock Text="测试版" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFF5EEE8" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                    </Border>
+                    <Button Width="64" Height="38" Margin="12,0,0,0" Background="Transparent" BorderBrush="#FF4D5058" BorderThickness="1" Cursor="Hand" ToolTip="AI 模型设置" Click="ApiSettingsButton_OnClick">
+                        <Button.Resources>
+                            <Style TargetType="Border"><Setter Property="CornerRadius" Value="20" /></Style>
+                        </Button.Resources>
+                        <Grid>
+                            <Ellipse Width="31" Height="31" Fill="#FFF2EAE0" HorizontalAlignment="Left" Margin="3,0,0,0" />
+                            <TextBlock Text="S" Foreground="#FF242226" FontFamily="Georgia" FontWeight="Bold" FontSize="16" HorizontalAlignment="Left" Margin="14,8,0,0" />
+                            <TextBlock Text="&#xE70D;" FontFamily="Segoe MDL2 Assets" Foreground="#FFAEB1B7" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        </Grid>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="20,0,20,37">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="361" />
+                    <ColumnDefinition Width="9" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Background="#FF181A1F" CornerRadius="11">
+                    <Grid Margin="13">
+                        <TextBlock x:Name="MailboxTitleText" Margin="12,3,0,0" Text="我的信箱  3" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="18" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                        <ScrollViewer Margin="0,51,0,100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <ScrollViewer.Resources>
+                                <Style TargetType="ScrollBar">
+                                    <Setter Property="Width" Value="6" />
+                                    <Setter Property="Margin" Value="0,4,2,4" />
+                                    <Setter Property="Background" Value="Transparent" />
+                                    <Setter Property="Opacity" Value="0" />
+                                    <Setter Property="Template">
+                                        <Setter.Value>
+                                            <ControlTemplate TargetType="ScrollBar">
+                                                <Grid Background="Transparent">
+                                                    <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True">
+                                                        <Track.DecreaseRepeatButton>
+                                                            <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Background="Transparent" BorderThickness="0" IsTabStop="False" />
+                                                        </Track.DecreaseRepeatButton>
+                                                        <Track.Thumb>
+                                                            <Thumb Background="#FF5C6068" BorderThickness="0">
+                                                                <Thumb.Template>
+                                                                    <ControlTemplate TargetType="Thumb">
+                                                                        <Border x:Name="ThumbSurface" Background="{TemplateBinding Background}" CornerRadius="3" />
+                                                                        <ControlTemplate.Triggers>
+                                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                                <Setter TargetName="ThumbSurface" Property="Background" Value="#FF858991" />
+                                                                            </Trigger>
+                                                                            <Trigger Property="IsDragging" Value="True">
+                                                                                <Setter TargetName="ThumbSurface" Property="Background" Value="#FFB4B0AA" />
+                                                                            </Trigger>
+                                                                        </ControlTemplate.Triggers>
+                                                                    </ControlTemplate>
+                                                                </Thumb.Template>
+                                                            </Thumb>
+                                                        </Track.Thumb>
+                                                        <Track.IncreaseRepeatButton>
+                                                            <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Background="Transparent" BorderThickness="0" IsTabStop="False" />
+                                                        </Track.IncreaseRepeatButton>
+                                                    </Track>
+                                                </Grid>
+                                            </ControlTemplate>
+                                        </Setter.Value>
+                                    </Setter>
+                                </Style>
+                            </ScrollViewer.Resources>
+                            <StackPanel>
+                                <StackPanel x:Name="SavedLettersPanel" />
+                            <Button x:Name="HelloItem" Style="{StaticResource MailboxItem}" Background="#FF292C31" Margin="0,4,0,0" Click="MailboxItem_OnClick" Tag="你好">
+                                <Grid Margin="12,0">
+                                    <Border Width="40" Height="40" CornerRadius="6" Background="#FF557A6A" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Margin="52,8,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="你好" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
+                                        <TextBlock Margin="0,3,0,0" Text="2026-08-26 18:08" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="WelcomeItem" Style="{StaticResource MailboxItem}" Margin="0,4,0,0" Click="MailboxItem_OnClick" Tag="欢迎来到信箱">
+                                <Grid Margin="12,0">
+                                    <Border Width="40" Height="40" CornerRadius="6" Background="#FF7A5068" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel Margin="52,8,0,0" VerticalAlignment="Center">
+                                        <TextBlock Text="欢迎来到信箱" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
+                                        <TextBlock Margin="0,3,0,0" Text="2026-08-26 17:32" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Border Height="80" Background="#FF22242A" CornerRadius="11" VerticalAlignment="Bottom">
+                            <Grid Margin="14,0">
+                                <Border Width="47" Height="47" CornerRadius="6" Background="#FF36383F" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE724;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#FFDDD8D1" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="59,18,85,0" VerticalAlignment="Top">
+                                    <TextBlock Text="给林离写信" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="16" />
+                                    <TextBlock Margin="0,3,0,0" Text="今天还有 0 封书信" Foreground="#FF9C9FA6" FontFamily="Microsoft YaHei UI" FontSize="12" />
+                                </StackPanel>
+                                <Button Width="68" Height="42" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FFE9E0D6" BorderBrush="#FFE9E0D6" BorderThickness="0" Content="写信" Foreground="#FF2B2927" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="15" Cursor="Hand" Click="ComposeButton_OnClick">
+                                    <Button.Resources>
+                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="21" /></Style>
+                                    </Button.Resources>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="2" Background="#FF181A1F" CornerRadius="11">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="85" />
+                            <RowDefinition Height="1" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="23,0,24,0">
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="SubjectText" Text="你好" Foreground="#FFF1EFED" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="18" />
+                                <TextBlock x:Name="DateText" Margin="0,8,0,0" Text="2026-08-26 18:08" Foreground="#FFB7B9BE" FontFamily="Microsoft YaHei UI" FontSize="13" />
+                            </StackPanel>
+                            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                                <Button x:Name="DownloadButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="DownloadButton_OnClick">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="DownloadButtonLabel" Margin="5,0,0,0" Text="下载" FontFamily="Microsoft YaHei UI" FontSize="13" />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="ShareButton" Style="{StaticResource PillButton}" Background="#FFE7DED5" BorderBrush="#FFE7DED5" Foreground="#FF272526" Click="ShareButton_OnClick">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE72D;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="ShareButtonLabel" Margin="5,0,0,0" Text="分享信件" FontFamily="Microsoft YaHei UI" FontSize="13" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                        <Border Grid.Row="1" Background="#FF292B30" />
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+                            <StackPanel Width="554" HorizontalAlignment="Center" Margin="0,20,0,0">
+                                <Image x:Name="ReplyImage" Width="554" Height="310" Stretch="Fill" SnapsToDevicePixels="True" />
+                                <Image x:Name="SentImage" Width="554" Height="310" Margin="0,9,0,0" Stretch="Fill" SnapsToDevicePixels="True" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
+
+
+
+

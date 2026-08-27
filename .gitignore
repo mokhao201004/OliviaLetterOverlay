@@ -1,0 +1,9 @@
+bin/
+bin-next/
+obj/
+obj-next/
+publish/
+release/
+*.user
+*.suo
+*.zip

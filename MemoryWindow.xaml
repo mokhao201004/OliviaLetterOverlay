@@ -1,0 +1,38 @@
+<Window x:Class="OliviaLetterOverlay.MemoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="560"
+        Height="490"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        PreviewKeyDown="Window_OnPreviewKeyDown">
+    <Border Background="#FF202228" BorderBrush="#FF3C3F47" BorderThickness="1" CornerRadius="12">
+        <Grid Margin="26,23">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
+                <TextBlock Text="记忆库" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="21" FontWeight="Bold" />
+                <Button Width="30" Height="30" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" Foreground="#FFAEB1B7" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE8BB;" Cursor="Hand" Click="CloseButton_OnClick" />
+            </Grid>
+            <TextBlock Grid.Row="1" Margin="0,8,0,16" Text="一行一条。只记录确定、可在后续信件中自然提起的事；不相关时不会强行引用。" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
+            <TextBox x:Name="MemoryBox" Grid.Row="2" Padding="13" Background="#FF17191E" BorderBrush="#FF454851" BorderThickness="1" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontSize="13" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" AcceptsReturn="True" />
+            <Grid Grid.Row="3" Margin="0,17,0,0">
+                <TextBlock x:Name="StatusText" MaxWidth="320" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" VerticalAlignment="Center" TextWrapping="Wrap" />
+                <Button x:Name="AnalyzeMemoryButton" Width="116" Height="38" HorizontalAlignment="Right" Margin="0,0,104,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="分析信箱记忆" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" Click="AnalyzeMemoryButton_OnClick">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
+                </Button>
+                <Button Width="94" Height="38" HorizontalAlignment="Right" Background="#FFE8DED4" BorderBrush="#FFE8DED4" BorderThickness="0" Foreground="#FF272526" Content="保存记忆" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" Click="SaveButton_OnClick">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
