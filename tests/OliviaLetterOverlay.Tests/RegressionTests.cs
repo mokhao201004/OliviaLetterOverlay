@@ -156,6 +156,10 @@ internal static class RegressionTests
 
         var templated = LetterQualityCheck.Validate("收到你的信了。无论怎样，你都不是一个人。\n\n—— 林离", "林离");
         Check(templated.Any(issue => issue.Contains("严重模板化")), "generic letter template is a high-penalty violation");
+        var judgeLike = LetterQualityCheck.Validate("你说的对，这件事确实如此。\n\n—— 林离", "林离");
+        Check(judgeLike.Any(issue => issue.Contains("严重不自然表达")), "judge-like agreement opener is a high-penalty violation");
+        var aiLike = LetterQualityCheck.Validate("从你的描述中，我能够感受到你的疲惫。这本质上是很正常的。\n\n—— 林离", "林离");
+        Check(aiLike.Any(issue => issue.Contains("严重不自然表达")), "formal AI-like wording is a high-penalty violation");
 
         var emotionless = LetterQualityCheck.Validate("明天可以早点睡。\n\n—— 林离", "林离", requireEmotion: true);
         Check(emotionless.Any(issue => issue.Contains("严重情绪缺失")), "emotionally relevant letters reject detached replies");
@@ -185,6 +189,7 @@ internal static class RegressionTests
         Check(PersonaPrompt.System.Contains("有明确的偏向"), "reply prompt asks for a personal point of view instead of neutral answers");
         Check(PersonaPrompt.System.Contains("模板高惩罚"), "reply prompt treats formulaic writing as a high-priority failure");
         Check(PersonaPrompt.System.Contains("情绪缺失高惩罚"), "reply prompt treats detached replies as a high-priority failure");
+        Check(PersonaPrompt.System.Contains("口语高惩罚"), "reply prompt avoids uncommon human wording as a high-priority failure");
     }
 
     private static void TestStyleMemoryMerge()
