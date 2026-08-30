@@ -21,6 +21,11 @@ internal static class LetterQualityCheck
         "本质上", "某种程度上", "值得被", "允许自己", "情绪价值", "保持觉察", "换个角度", "归根结底", "不得不说",
     ];
 
+    private static readonly string[] HighPenaltyConversationReplayPhrases =
+    [
+        "我明白你的意思了", "我明白你的意思", "这个我记住了", "这个我会记住",
+    ];
+
     private static readonly string[] EmotionalResponseMarkers =
     [
         "我在意", "有点担心", "替你担心", "放心不下", "听到你", "听着就", "替你高兴", "我也开心",
@@ -70,6 +75,14 @@ internal static class LetterQualityCheck
             }
         }
 
+        foreach (var phrase in HighPenaltyConversationReplayPhrases)
+        {
+            if (text.Contains(phrase, StringComparison.Ordinal))
+            {
+                issues.Add("严重对话复盘：出现了像客服确认事项一样的话「" + phrase + "」，必须直接回应对方介意的事，不要逐条解释对话过程");
+            }
+        }
+
         if (requireEmotion && !EmotionalResponseMarkers.Any(marker => text.Contains(marker, StringComparison.Ordinal)))
         {
             issues.Add("严重情绪缺失：来信有明显情绪时，不能只回答事情本身；要写出具体的在意或感受");
@@ -103,6 +116,7 @@ internal static class LetterQualityCheck
         var hasHighPenaltyTemplate = issues.Any(issue => issue.StartsWith("严重模板化", StringComparison.Ordinal));
         var hasMissingEmotion = issues.Any(issue => issue.StartsWith("严重情绪缺失", StringComparison.Ordinal));
         var hasUnnaturalWording = issues.Any(issue => issue.StartsWith("严重不自然表达", StringComparison.Ordinal));
+        var hasConversationReplay = issues.Any(issue => issue.StartsWith("严重对话复盘", StringComparison.Ordinal));
         var repaired = new List<object>(messages)
         {
             new { role = "assistant", content = draft },
@@ -118,6 +132,9 @@ internal static class LetterQualityCheck
                         : string.Empty)
                     + (hasUnnaturalWording
                         ? "\n\n其中“严重不自然表达”优先级最高：整句换成现实里普通人会说的常用话，不要只替换一两个词，也不要换成另一句书面腔或心理咨询腔。"
+                        : string.Empty)
+                    + (hasConversationReplay
+                        ? "\n\n其中“严重对话复盘”优先级最高：不要按时间顺序复述对方说过什么、自己怎么理解、所以为什么这么做。不要写成客服确认或解释经过；先直接回应对方最介意的地方，再自然往下聊。"
                         : string.Empty)
                     + "\n\n请重写一封完整的回信：只修正上面列出的问题，其余内容尽量原样保留，不要延长信件；只输出回信正文本身。",
             },
@@ -139,5 +156,6 @@ internal static class LetterQualityCheck
 
     private static bool IsHighPenaltyIssue(string issue) => issue.StartsWith("严重模板化", StringComparison.Ordinal)
         || issue.StartsWith("严重情绪缺失", StringComparison.Ordinal)
-        || issue.StartsWith("严重不自然表达", StringComparison.Ordinal);
+        || issue.StartsWith("严重不自然表达", StringComparison.Ordinal)
+        || issue.StartsWith("严重对话复盘", StringComparison.Ordinal);
 }

@@ -160,6 +160,8 @@ internal static class RegressionTests
         Check(judgeLike.Any(issue => issue.Contains("严重不自然表达")), "judge-like agreement opener is a high-penalty violation");
         var aiLike = LetterQualityCheck.Validate("从你的描述中，我能够感受到你的疲惫。这本质上是很正常的。\n\n—— 林离", "林离");
         Check(aiLike.Any(issue => issue.Contains("严重不自然表达")), "formal AI-like wording is a high-penalty violation");
+        var replay = LetterQualityCheck.Validate("刚才那句行吧行吧，我以为话题聊完了，就停了。现在我明白你的意思了——你是想让我多待一会儿。这个我记住了。\n\n—— 林离", "林离");
+        Check(replay.Any(issue => issue.Contains("严重对话复盘")), "conversation-replay replies are a high-penalty violation");
         var ordinary = LetterQualityCheck.Validate("在这个周末，希望你能睡个好觉。\n\n—— 林离", "林离");
         Check(ordinary.Count == 0, "ordinary human wording is not mistaken for a template");
 
@@ -198,6 +200,7 @@ internal static class RegressionTests
         Check(PersonaPrompt.System.Contains("模板高惩罚"), "reply prompt treats formulaic writing as a high-priority failure");
         Check(PersonaPrompt.System.Contains("情绪缺失高惩罚"), "reply prompt treats detached replies as a high-priority failure");
         Check(PersonaPrompt.System.Contains("口语高惩罚"), "reply prompt avoids uncommon human wording as a high-priority failure");
+        Check(PersonaPrompt.System.Contains("对话复盘高惩罚"), "reply prompt rejects assistant-like dialogue recaps");
     }
 
     private static void TestStyleMemoryMerge()
