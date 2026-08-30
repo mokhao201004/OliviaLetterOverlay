@@ -29,6 +29,9 @@ public partial class ReplyWindow : Window
 internal static class ReplyLetterRenderer
 {
     private static readonly BitmapImage Paper = new(new Uri("pack://application:,,,/Assets/letter-paper-olivia-inspired-v2.png", UriKind.Absolute));
+    private const string LetterFontFileName = "ChillZhuo.ttf";
+    private static string? _resolvedFamilyName;
+
     internal static BitmapSource LetterPaperSource => Paper;
 
     public static IReadOnlyList<BitmapSource> RenderPages(string reply, Size size)
@@ -123,8 +126,31 @@ internal static class ReplyLetterRenderer
 
     internal static Typeface CreateLetterTypeface(FontWeight weight)
     {
-        // 与写信框保持相同的系统楷体，收信和寄信看起来是一套字。
-        return new Typeface(new FontFamily("KaiTi"), FontStyles.Normal, weight, FontStretches.Normal);
+        // 寒蝉手拙体与寄出的信纸一致；字体文件缺失时才回退系统楷体。
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", LetterFontFileName);
+        var family = File.Exists(fontPath)
+            ? new FontFamily(fontPath + "#" + ResolveFamilyName(fontPath))
+            : new FontFamily("KaiTi");
+        return new Typeface(family, FontStyles.Normal, weight, FontStretches.Normal);
+    }
+
+    private static string ResolveFamilyName(string fontPath)
+    {
+        _resolvedFamilyName ??= TryReadFamilyName(fontPath) ?? "KaiTi";
+        return _resolvedFamilyName;
+    }
+
+    private static string? TryReadFamilyName(string fontPath)
+    {
+        try
+        {
+            var glyph = new GlyphTypeface(new Uri(fontPath));
+            return glyph.FamilyNames.Values.FirstOrDefault();
+        }
+        catch (Exception exception) when (exception is IOException or UriFormatException or NotSupportedException)
+        {
+            return null;
+        }
     }
 
     internal static FormattedText FormatReply(string reply, double width) =>
