@@ -39,6 +39,12 @@ internal static class RegressionTests
                 return 0;
             }
 
+            if (args.Contains("--verify-reply-tone"))
+            {
+                TestReplyToneGuidance();
+                return 0;
+            }
+
             TestCharacters();
             TestLetterTitles();
             TestRequestsAsync().GetAwaiter().GetResult();
@@ -49,6 +55,7 @@ internal static class RegressionTests
             TestTtsClient();
             TestStyleMemoryMerge();
             TestLetterQualityCheck();
+            TestReplyToneGuidance();
             Console.WriteLine($"PASS: {_passed} checks; isolated fixtures: {Environment.TestRoot}");
             return 0;
         }
@@ -148,6 +155,15 @@ internal static class RegressionTests
             "旧稿内容",
             new List<string> { "问题一", "问题二" });
         Check(repair.Count == 3, "repair messages append assistant draft and user correction");
+    }
+
+    private static void TestReplyToneGuidance()
+    {
+        Check(PersonaPrompt.System.Contains("先接住对方当下的情绪"), "reply prompt requires acknowledging the reader's current emotion first");
+        Check(PersonaPrompt.System.Contains("让对方能感觉到你是在意的"), "reply prompt requires visible but restrained care");
+        Check(PersonaPrompt.System.Contains("不夸张煽情"), "reply prompt keeps emotional care from becoming melodramatic");
+        Check(PersonaPrompt.System.Contains("不必把每句话说得面面俱到"), "reply prompt permits natural, non-formulaic wording");
+        Check(PersonaPrompt.System.Contains("有明确的偏向"), "reply prompt asks for a personal point of view instead of neutral answers");
     }
 
     private static void TestStyleMemoryMerge()
