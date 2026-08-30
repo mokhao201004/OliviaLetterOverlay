@@ -41,6 +41,7 @@ internal static class RegressionTests
 
             if (args.Contains("--verify-reply-tone"))
             {
+                TestLetterQualityCheck();
                 TestReplyToneGuidance();
                 return 0;
             }
@@ -147,6 +148,18 @@ internal static class RegressionTests
         Check(issues.Any(issue => issue.Contains("星号")), "stage direction issue is reported");
         Check(issues.Any(issue => issue.Contains("套话")), "banned phrase issue is reported");
 
+        var templated = LetterQualityCheck.Validate("收到你的信了。无论怎样，你都不是一个人。\n\n—— 林离", "林离");
+        Check(templated.Any(issue => issue.Contains("严重模板化")), "generic letter template is a high-penalty violation");
+
+        var emotionless = LetterQualityCheck.Validate("明天可以早点睡。\n\n—— 林离", "林离", requireEmotion: true);
+        Check(emotionless.Any(issue => issue.Contains("严重情绪缺失")), "emotionally relevant letters reject detached replies");
+        var responsive = LetterQualityCheck.Validate("听到你这么累，我心里也有点不踏实。今晚先别逼自己把所有事理顺。\n\n—— 林离", "林离", requireEmotion: true);
+        Check(!responsive.Any(issue => issue.Contains("严重情绪缺失")), "specific emotional response is not penalized");
+        Check(!LetterQualityCheck.IsRepairImproved(["严重情绪缺失：缺少回应", "缺少落款"], ["严重情绪缺失：仍然缺少回应"]),
+            "repair that keeps a high-penalty emotional failure is rejected");
+        Check(LetterQualityCheck.IsRepairImproved(["严重情绪缺失：缺少回应", "缺少落款"], ["缺少落款"]),
+            "repair that clears a high-penalty emotional failure is accepted");
+
         Check(LetterQualityCheck.Validate("没有落款的信", "林离").Any(issue => issue.Contains("落款")), "missing signature is flagged");
         Check(LetterQualityCheck.Validate("开头就写林离觉得如何。\n\n—— 林离", "林离").Any(issue => issue.Contains("正文中途")), "mid-text character name is flagged");
 
@@ -164,6 +177,8 @@ internal static class RegressionTests
         Check(PersonaPrompt.System.Contains("不夸张煽情"), "reply prompt keeps emotional care from becoming melodramatic");
         Check(PersonaPrompt.System.Contains("不必把每句话说得面面俱到"), "reply prompt permits natural, non-formulaic wording");
         Check(PersonaPrompt.System.Contains("有明确的偏向"), "reply prompt asks for a personal point of view instead of neutral answers");
+        Check(PersonaPrompt.System.Contains("模板高惩罚"), "reply prompt treats formulaic writing as a high-priority failure");
+        Check(PersonaPrompt.System.Contains("情绪缺失高惩罚"), "reply prompt treats detached replies as a high-priority failure");
     }
 
     private static void TestStyleMemoryMerge()

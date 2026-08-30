@@ -54,7 +54,7 @@ internal static class MimoClient
         });
 
         var reply = await RequestCompletionAsync(messages, ReplyTokenBudget);
-        reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name);
+        reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name, RequiresEmotionalResponse(letter));
         return NormalizeReply(reply ?? string.Empty, characterId);
     }
 
@@ -140,17 +140,17 @@ internal static class MimoClient
 
         messages.Add(new { role = "user", content = "请写这一封主动来信。" });
         var reply = await RequestCompletionAsync(messages, ReplyTokenBudget);
-        reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name);
+        reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name, requireEmotion: false);
         return NormalizeReply(reply ?? string.Empty, characterId);
     }
 
     // 生成后做一次硬校验；命中问题时附带具体违规清单重写一次，
     // 修复稿问题不多于原稿才采用，否则保留原稿。修复是增强步骤：
     // 任何失败（网络、服务关闭、超时）都只记日志并退回原稿，绝不打断回信。
-    private static async Task<string?> RepairIfNeededAsync(List<object> messages, string? reply, string signatureName)
+    private static async Task<string?> RepairIfNeededAsync(List<object> messages, string? reply, string signatureName, bool requireEmotion)
     {
         var draft = reply ?? string.Empty;
-        var issues = LetterQualityCheck.Validate(draft, signatureName);
+        var issues = LetterQualityCheck.Validate(draft, signatureName, requireEmotion);
         if (issues.Count == 0)
         {
             return reply;
@@ -175,15 +175,24 @@ internal static class MimoClient
                 return reply;
             }
 
-            var remaining = LetterQualityCheck.Validate(repaired, signatureName);
+            var remaining = LetterQualityCheck.Validate(repaired, signatureName, requireEmotion);
             DiagnosticLog.Write("ai.quality", "repair_applied remaining=" + remaining.Count);
-            return remaining.Count <= issues.Count ? repaired : reply;
+            return LetterQualityCheck.IsRepairImproved(issues, remaining) ? repaired : reply;
         }
         catch (Exception exception)
         {
             DiagnosticLog.Write("ai.quality", "repair_failed error=" + DiagnosticLog.Redact(exception.Message));
             return reply;
         }
+    }
+
+    private static bool RequiresEmotionalResponse(string letter)
+    {
+        var signals = new[]
+        {
+            "难过", "委屈", "疲惫", "累", "空虚", "孤独", "不安", "害怕", "迷茫", "焦虑", "崩溃", "睡不着", "想哭", "高兴", "开心", "激动", "期待", "犹豫", "烦", "不知道怎么办",
+        };
+        return signals.Any(signal => letter.Contains(signal, StringComparison.Ordinal));
     }
 
     public static async Task<List<string>> AnalyzeMemoriesAsync(IReadOnlyList<SavedLetter> letters)
