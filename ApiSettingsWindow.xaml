@@ -214,7 +214,7 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="说话风格学习" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
-                                <TextBlock Text="寄出信件后自动学习你的说话方式并注入回信；保留条数填 0 = 一直保存全部观察" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                                <TextBlock Text="寄出信件后自动学习你的说话方式并注入回信；独立保存，不会写入记忆库；保留条数填 0 = 一直保存全部观察" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
                             </StackPanel>
                             <TextBox x:Name="StyleMemoryLimitBox" Grid.Column="1" Height="30" Margin="8,0,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" ToolTip="保留的「用户说话」观察条数；0 = 不限量" />
                             <Button x:Name="ClearStyleButton" Grid.Column="2" Height="30" Margin="8,0,0,0" Padding="10,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="清除" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="ClearStyleButton_OnClick" ToolTip="删除当前角色已学习的全部说话风格观察">

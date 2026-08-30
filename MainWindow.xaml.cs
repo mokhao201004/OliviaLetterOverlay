@@ -120,6 +120,7 @@ public partial class MainWindow : Window
     {
         var character = CharacterStore.Current;
         _characterId = character.Id;
+        UserStyleStore.MigrateLegacyEntries(_characterId);
         CharacterButton.Content = $"角色：{character.Name} ▾";
         CharacterButton.ToolTip = $"当前角色：{character.Name}；点击切换角色与独立记忆";
         ComposeTitleText.Text = $"给{character.Name}写信";

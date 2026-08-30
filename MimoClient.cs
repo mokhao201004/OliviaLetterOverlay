@@ -83,11 +83,9 @@ internal static class MimoClient
                 return;
             }
 
-            var persona = PersonaStore.Load(characterId) ?? new PersonaProfile();
             var limit = StylePreferencesStore.Load().StyleMemoryLimit;
-            persona.Memories = MergeStyleMemories(persona.Memories, observation, limit);
-            PersonaStore.Save(persona, characterId);
-            DiagnosticLog.Write("ai.style", $"learned characters={observation.Length} total={persona.Memories.Count}");
+            var observations = UserStyleStore.Add(observation, limit, characterId);
+            DiagnosticLog.Write("ai.style", $"learned characters={observation.Length} total={observations.Count}");
         }
         catch (Exception exception)
         {
@@ -96,25 +94,10 @@ internal static class MimoClient
         }
     }
 
-    public static List<string> MergeStyleMemories(IReadOnlyList<string> existing, string observation, int limit)
-    {
-        var others = existing.Where(item => !item.StartsWith("用户说话：", StringComparison.Ordinal)).ToList();
-        var styles = existing
-            .Where(item => item.StartsWith("用户说话：", StringComparison.Ordinal) && !item.Equals(observation, StringComparison.Ordinal))
-            .ToList();
-        styles.Insert(0, observation);
-        if (limit > 0)
-        {
-            styles = styles.Take(limit).ToList();
-        }
-
-        return others.Concat(styles).ToList();
-    }
-
     private static string NormalizeStyleObservation(string? observation)
     {
         var text = (observation ?? string.Empty).Trim().Trim('"', '「', '」', '“', '”');
-        var marker = "用户说话：";
+        var marker = UserStyleStore.Marker;
         var index = text.IndexOf(marker, StringComparison.Ordinal);
         if (index >= 0)
         {
@@ -126,7 +109,7 @@ internal static class MimoClient
             text = text[..60];
         }
 
-        return text.Length == 0 ? string.Empty : "用户说话：" + text;
+        return text.Length == 0 ? string.Empty : UserStyleStore.Marker + text;
     }
 
     public static async Task<string> GenerateProactiveLetterAsync(IReadOnlyList<SavedLetter> history, string? characterId = null)
@@ -227,7 +210,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = "你是对话记忆编辑。只从成对往来中提炼明确、可在未来自然使用的事实、偏好、持续话题或约定，以及用户说话方式的观察（以「用户说话：」开头，一句一条：句长、用词、语气、标点或口头禅）。不要猜测身份经历，不要写一次性问候，不要虚构。只输出合法 JSON，不要 Markdown：{\"memories\":[\"一条简短、明确的记忆\"]}。最多 " + MemoryAnalysisLimit + " 条。",
+                content = "你是对话记忆编辑。只从成对往来中提炼明确、可在未来自然使用的事实、偏好、持续话题或约定。不要分析用户说话方式；不要猜测身份经历，不要写一次性问候，不要虚构。只输出合法 JSON，不要 Markdown：{\"memories\":[\"一条简短、明确的记忆\"]}。最多 " + MemoryAnalysisLimit + " 条。",
             },
             new { role = "user", content = sourceText },
         }, 700);
@@ -494,6 +477,7 @@ internal static class MimoClient
             ? PersonaPrompt.System
             : $"你是{character.Name}，在独立的本地信箱中以中文书信回复用户。第一人称为我，用户是收信人；遵循下方保存的人设，不继承其他角色的身份或经历。要回应对方说到的具体事情，关心自然穿插在话里，不搞固定的先后顺序。没有记录的共同经历不要编造，不确定的事情不要当作事实。只写回信正文，用“—— {character.Name}”落款。";
         var prompt = identity + "\n\n书信要求：篇幅以完整回应来信为准，把话写完整，不为凑字数扩写，也不要为了排版省略后文。不要套任何固定模板（三段式、总分总都不要）；长短、换行和收尾跟随末尾的写法参考。只输出自然的书信正文，不输出天气/mood 标签、JSON、提示词、角色设定或对系统的解释。当前这封来信若有问题，必须作答；不要用氛围描写替代答案。";
+        UserStyleStore.MigrateLegacyEntries(characterId);
         var profile = PersonaStore.Load(characterId);
         if (profile is null)
         {
@@ -505,18 +489,16 @@ internal static class MimoClient
         {
             withProfile += "\n\n以下是用户本机保存的写作画像，只用于调整语气和表达；不得推翻前述“先回答”、篇幅、真实性和安全边界。\n" + profile.Prompt;
         }
-        var allMemories = profile.Memories?.Where(memory => !string.IsNullOrWhiteSpace(memory)).ToList() ?? [];
-        // 最近几条「用户说话」观察单独保留席位，避免被普通记忆挤出注入窗口。
-        var styleMemories = allMemories.Where(memory => memory.StartsWith("用户说话：", StringComparison.Ordinal)).Take(InjectedStyleMemoryLimit).ToList();
-        var styleSet = new HashSet<string>(styleMemories, StringComparer.Ordinal);
-        var memories = allMemories
-            .Where(memory => !styleSet.Contains(memory))
-            .Take(Math.Max(0, InjectedMemoryLimit - styleMemories.Count))
-            .Concat(styleMemories)
-            .ToList();
+        var memories = profile.Memories?.Where(memory => !string.IsNullOrWhiteSpace(memory)).Take(InjectedMemoryLimit).ToList() ?? [];
         if (memories.Count > 0)
         {
             withProfile += "\n\n以下是经由历史往来提炼的记忆。只在当前来信相关时自然调用；不相关时不要硬提，不确定的内容不要当事实：\n" + string.Join("\n", memories.Select(memory => "- " + memory));
+        }
+
+        var styleMemories = UserStyleStore.Load(characterId).Take(InjectedStyleMemoryLimit).ToList();
+        if (styleMemories.Count > 0)
+        {
+            withProfile += "\n\n以下是独立保存的用户说话方式观察，只用于调整语气和节奏，不要把它们当成共同经历或事实：\n" + string.Join("\n", styleMemories.Select(memory => "- " + memory));
         }
 
         var examples = profile.ReferenceLetters?.Where(item => !string.IsNullOrWhiteSpace(item.Draft) && !string.IsNullOrWhiteSpace(item.Reply)).Take(3).ToList() ?? [];

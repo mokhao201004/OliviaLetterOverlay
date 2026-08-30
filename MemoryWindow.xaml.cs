@@ -11,6 +11,7 @@ public partial class MemoryWindow : Window
     public MemoryWindow()
     {
         InitializeComponent();
+        UserStyleStore.MigrateLegacyEntries(_characterId);
         MemoryTitleText.Text = $"{CharacterStore.Get(_characterId).Name} · 记忆库";
         var profile = PersonaStore.Load(_characterId);
         var memories = profile?.Memories ?? [];

@@ -158,25 +158,27 @@ internal static class RegressionTests
 
         var existing = new List<string>
         {
-            "事实A",
             "用户说话：句子短，少标点",
-            "事实B",
             "用户说话：爱用语气词",
         };
-        var merged = MimoClient.MergeStyleMemories(existing, "用户说话：爱用省略号", 5);
-        Check(merged.Count == 5 && merged[0] == "事实A" && merged[1] == "事实B", "style merge keeps fact memories in front");
-        Check(merged.Skip(2).First() == "用户说话：爱用省略号", "newest style observation comes first among styles");
-        Check(merged.Skip(3).SequenceEqual(new[] { "用户说话：句子短，少标点", "用户说话：爱用语气词" }), "older style observations follow newest");
+        var merged = UserStyleStore.Merge(existing, "用户说话：爱用省略号", 5);
+        Check(merged.First() == "用户说话：爱用省略号", "newest style observation comes first in its own store");
+        Check(merged.Skip(1).SequenceEqual(existing), "older style observations stay in their own store");
 
-        var rolled = MimoClient.MergeStyleMemories(existing, "用户说话：新的观察", 2);
-        Check(rolled.Count == 4 && rolled.Contains("事实A") && rolled.Contains("事实B"), "style roll keeps fact memories untouched");
-        Check(rolled.Where(item => item.StartsWith("用户说话：", StringComparison.Ordinal)).Count() == 2, "style roll respects the configured limit");
+        var rolled = UserStyleStore.Merge(existing, "用户说话：新的观察", 2);
+        Check(rolled.Count == 2 && rolled.First() == "用户说话：新的观察", "style store respects the configured limit");
 
-        var unlimited = MimoClient.MergeStyleMemories(existing, "用户说话：新的观察", 0);
-        Check(unlimited.Where(item => item.StartsWith("用户说话：", StringComparison.Ordinal)).Count() == 3, "limit 0 keeps every style observation");
+        var unlimited = UserStyleStore.Merge(existing, "用户说话：新的观察", 0);
+        Check(unlimited.Count == 3, "zero style limit keeps every observation");
 
-        var deduped = MimoClient.MergeStyleMemories(existing, "用户说话：句子短，少标点", 0);
+        var deduped = UserStyleStore.Merge(existing, "用户说话：句子短，少标点", 0);
         Check(deduped.Count(item => item == "用户说话：句子短，少标点") == 1, "duplicate observation is not stored twice");
+
+        var character = CharacterStore.Create("风格迁移", "");
+        PersonaStore.Save(new PersonaProfile { Memories = ["事实：喜欢红茶", "用户说话：句子短"] }, character.Id);
+        UserStyleStore.MigrateLegacyEntries(character.Id);
+        Check(PersonaStore.Load(character.Id)!.Memories.SequenceEqual(["事实：喜欢红茶"]), "legacy style observations leave the memory library");
+        Check(UserStyleStore.Load(character.Id).SequenceEqual(["用户说话：句子短"]), "legacy style observations move to the separate store");
     }
 
     private static void Check(bool condition, string message)

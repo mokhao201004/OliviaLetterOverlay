@@ -259,17 +259,8 @@ public partial class ApiSettingsWindow : Window
 
         try
         {
-            var persona = PersonaStore.Load(_characterId);
-            if (persona is null)
-            {
-                StatusText.Text = "当前角色还没有任何学习记录。";
-                return;
-            }
-
-            var kept = persona.Memories.Where(item => !item.StartsWith("用户说话：", StringComparison.Ordinal)).ToList();
-            var removed = persona.Memories.Count - kept.Count;
-            persona.Memories = kept;
-            PersonaStore.Save(persona, _characterId);
+            UserStyleStore.MigrateLegacyEntries(_characterId);
+            var removed = UserStyleStore.Clear(_characterId);
             StatusText.Text = $"已清除 {removed} 条风格观察。";
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
