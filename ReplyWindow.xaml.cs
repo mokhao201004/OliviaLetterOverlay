@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -11,7 +12,7 @@ public partial class ReplyWindow : Window
     public ReplyWindow(string reply)
     {
         InitializeComponent();
-        ReplyImage.Source = ReplyLetterRenderer.Render(reply, new Size(620, 380));
+        ReplyPages.ItemsSource = ReplyLetterRenderer.RenderPages(reply, new Size(600, 380));
     }
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
@@ -27,22 +28,149 @@ public partial class ReplyWindow : Window
 
 internal static class ReplyLetterRenderer
 {
-    private static readonly BitmapImage Paper = new(new Uri("pack://application:,,,/Assets/letter-paper.png", UriKind.Absolute));
+    private static readonly BitmapImage Paper = new(new Uri("pack://application:,,,/Assets/letter-paper-olivia-inspired-v2.png", UriKind.Absolute));
+    internal static BitmapSource LetterPaperSource => Paper;
 
-    public static BitmapSource Render(string reply, Size size)
+    public static IReadOnlyList<BitmapSource> RenderPages(string reply, Size size)
     {
         var width = (int)size.Width;
         var height = (int)size.Height;
-        var visual = new DrawingVisual();
-
-        using (var drawing = visual.RenderOpen())
+        var pages = Paginate(reply, size);
+        var images = new List<BitmapSource>();
+        for (var index = 0; index < pages.Count; index++)
         {
-            drawing.DrawImage(Paper, new Rect(0, 0, width, height));
-            DrawFittedReply(drawing, reply, width * .047, height * .092, width * .906, height * .74);
-            DrawDate(drawing, DateTime.Today.ToString("yyyy-MM-dd"), width, height);
+            var visual = new DrawingVisual();
+            using (var drawing = visual.RenderOpen())
+            {
+                drawing.DrawImage(Paper, new Rect(0, 0, width, height));
+                DrawThickenedText(drawing, FormatReply(pages[index], width), new Point(width * .042, height * .071));
+                DrawDate(drawing, DateTime.Today.ToString("yyyy-MM-dd"), width, height);
+                if (pages.Count > 1)
+                {
+                    DrawText(drawing, $"{index + 1} / {pages.Count}", width * .047, height * .91,
+                        width * .3, height * .08, 12, 16.2, FontWeights.Normal);
+                }
+            }
+
+            images.Add(ToBitmap(visual, width, height));
         }
 
-        return ToBitmap(visual, width, height);
+        return images;
+    }
+
+    // 把分页位图垂直拼成一张完整长信：连续滚动的阅读基础。
+    // 每页边缘 1px 边框重叠 2 像素，避免拼接处出现双线。
+    public static BitmapSource RenderFullLetter(IReadOnlyList<BitmapSource> pages)
+    {
+        if (pages.Count == 0)
+        {
+            throw new InvalidOperationException("没有可拼接的信页。");
+        }
+
+        var width = pages[0].PixelWidth;
+        var overlap = 2;
+        var totalHeight = pages.Sum(page => page.PixelHeight) - overlap * (pages.Count - 1);
+        var visual = new DrawingVisual();
+        using (var drawing = visual.RenderOpen())
+        {
+            var y = 0d;
+            foreach (var page in pages)
+            {
+                drawing.DrawImage(page, new Rect(0, y, width, page.PixelHeight));
+                y += page.PixelHeight - overlap;
+            }
+        }
+
+        var bitmap = new RenderTargetBitmap(width, totalHeight, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
+    internal static IReadOnlyList<string> Paginate(string reply, Size size)
+    {
+        if (reply.Length == 0) return [string.Empty];
+        // Measure the actual font layout, and never split a surrogate pair or combining character.
+        var boundaries = StringInfo.ParseCombiningCharacters(reply).Append(reply.Length).ToArray();
+        var pages = new List<string>();
+        var start = 0;
+        while (start < boundaries.Length - 1)
+        {
+            var low = start + 1;
+            var high = boundaries.Length - 1;
+            var end = low;
+            while (low <= high)
+            {
+                var middle = low + (high - low) / 2;
+                var text = reply[boundaries[start]..boundaries[middle]];
+                if (FormatReply(text, size.Width).Height <= size.Height * .74)
+                {
+                    end = middle;
+                    low = middle + 1;
+                }
+                else
+                {
+                    high = middle - 1;
+                }
+            }
+
+            pages.Add(reply[boundaries[start]..boundaries[end]]);
+            start = end;
+        }
+
+        return pages;
+    }
+
+    private const string LetterFontFileName = "ChillZhuo.ttf";
+    private static string? _resolvedFamilyName;
+
+    // 「寒蝉手拙体」由作者免费授权全社会使用（包括商用），分发时保留作者标注；缺失时退回系统楷体。
+    // 家族名从字体文件自动读取：换字体只需替换 Assets\Fonts 里的 ttf 并改上面的文件名，不用再对家族名。
+    internal static Typeface CreateLetterTypeface(FontWeight weight)
+    {
+        var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", LetterFontFileName);
+        var family = File.Exists(fontPath) ? new FontFamily(fontPath + "#" + ResolveFamilyName(fontPath)) : new FontFamily("KaiTi");
+        return new Typeface(family, FontStyles.Normal, weight, FontStretches.Normal);
+    }
+
+    private static string ResolveFamilyName(string fontPath)
+    {
+        _resolvedFamilyName ??= TryReadFamilyName(fontPath) ?? "KaiTi";
+        return _resolvedFamilyName;
+    }
+
+    private static string? TryReadFamilyName(string fontPath)
+    {
+        try
+        {
+            var glyph = new GlyphTypeface(new Uri(fontPath));
+            return glyph.FamilyNames.Values.FirstOrDefault();
+        }
+        catch (Exception exception) when (exception is IOException or UriFormatException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    internal static FormattedText FormatReply(string reply, double width) =>
+        new(
+            reply.Trim('\r', '\n'),
+            CultureInfo.GetCultureInfo("zh-CN"),
+            FlowDirection.LeftToRight,
+            CreateLetterTypeface(FontWeights.Normal),
+            22,
+            new SolidColorBrush(Color.FromRgb(30, 26, 22)),
+            1.0)
+        {
+            MaxTextWidth = width * .916,
+            LineHeight = 28,
+            Trimming = TextTrimming.None,
+        };
+
+    // 单次绘制：寒蝉手拙体在正文字号下笔画已经足够黑实，叠绘反而让笔画密的字发胖。
+    private static void DrawThickenedText(DrawingContext drawing, FormattedText formatted, Point point)
+    {
+        drawing.DrawText(formatted, point);
     }
 
     internal static void DrawText(DrawingContext drawing, string text, double x, double y, double maxWidth, double maxHeight, double fontSize, double lineHeight, FontWeight weight)
@@ -51,7 +179,7 @@ internal static class ReplyLetterRenderer
             text,
             CultureInfo.GetCultureInfo("zh-CN"),
             FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("KaiTi"), FontStyles.Normal, weight, FontStretches.Normal),
+            CreateLetterTypeface(weight),
             fontSize,
             new SolidColorBrush(Color.FromRgb(46, 41, 34)),
             1.0)
@@ -61,34 +189,7 @@ internal static class ReplyLetterRenderer
             LineHeight = lineHeight,
             Trimming = TextTrimming.WordEllipsis,
         };
-        drawing.DrawText(formatted, new Point(x, y));
-    }
-
-    private static void DrawFittedReply(DrawingContext drawing, string text, double x, double y, double maxWidth, double maxHeight)
-    {
-        for (var fontSize = 16.2; fontSize >= 12; fontSize -= .4)
-        {
-            var formatted = new FormattedText(
-                text,
-                CultureInfo.GetCultureInfo("zh-CN"),
-                FlowDirection.LeftToRight,
-                new Typeface(new FontFamily("KaiTi"), FontStyles.Normal, FontWeights.Normal, FontStretches.Normal),
-                fontSize,
-                new SolidColorBrush(Color.FromRgb(46, 41, 34)),
-                1.0)
-            {
-                MaxTextWidth = maxWidth,
-                LineHeight = fontSize * 1.35,
-            };
-
-            if (formatted.Height <= maxHeight)
-            {
-                drawing.DrawText(formatted, new Point(x, y));
-                return;
-            }
-        }
-
-        DrawText(drawing, text, x, y, maxWidth, maxHeight, 12, 16.2, FontWeights.Normal);
+        DrawThickenedText(drawing, formatted, new Point(x, y));
     }
 
     internal static void DrawDate(DrawingContext drawing, string date, int width, int height)
@@ -97,11 +198,11 @@ internal static class ReplyLetterRenderer
             date,
             CultureInfo.GetCultureInfo("zh-CN"),
             FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("KaiTi"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal),
-            13.5,
+            CreateLetterTypeface(FontWeights.Normal),
+            16,
             new SolidColorBrush(Color.FromRgb(46, 41, 34)),
             1.0);
-        drawing.DrawText(formatted, new Point(width - formatted.Width - width * .055, height - formatted.Height - height * .035));
+        DrawThickenedText(drawing, formatted, new Point(width - formatted.Width - width * .04, height - formatted.Height - height * .04));
     }
 
     internal static BitmapSource ToBitmap(DrawingVisual visual, int width, int height)
@@ -138,7 +239,7 @@ internal static class SentLetterRenderer
                 title = title[..26] + "…";
             }
 
-            ReplyLetterRenderer.DrawText(drawing, title, width * .046, height * .09, width * .56, height * .2, 17.2, 21, FontWeights.Normal);
+            ReplyLetterRenderer.DrawText(drawing, title, width * .046, height * .09, width * .56, height * .2, 22, 28, FontWeights.Normal);
             ReplyLetterRenderer.DrawDate(drawing, date, width, height);
         }
         return ReplyLetterRenderer.ToBitmap(visual, width, height);

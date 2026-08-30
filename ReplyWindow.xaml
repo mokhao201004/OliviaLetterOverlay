@@ -11,7 +11,15 @@
         WindowStyle="None">
     <Border Background="#FF22242A" CornerRadius="12" Padding="20">
         <Grid Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
-            <Image x:Name="ReplyImage" Stretch="Fill" />
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="ReplyPages">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Image Source="{Binding}" Width="600" Height="380" Stretch="Uniform" Margin="0,0,0,10" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
             <Button HorizontalAlignment="Right"
                     VerticalAlignment="Top"
                     Width="30"

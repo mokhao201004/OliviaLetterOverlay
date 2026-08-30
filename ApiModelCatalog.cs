@@ -43,7 +43,7 @@ internal static class ApiModelCatalog
             request.Headers.Add("api-key", apiKey.Trim());
         }
 
-        using var response = await Client.SendAsync(request);
+        using var response = await DiagnosticLog.SendAsync(Client, request, "api.models");
         if (!response.IsSuccessStatusCode)
         {
             var detail = await response.Content.ReadAsStringAsync();

@@ -12,23 +12,19 @@ public sealed class AutoLetterSettings
 
 internal static class AutoLetterStore
 {
-    private static readonly string StorageDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OliviaLetterOverlay");
-
-    private static readonly string StorageFile = Path.Combine(StorageDirectory, "auto-letter-settings.json");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    public static AutoLetterSettings Load()
+    public static AutoLetterSettings Load(string? characterId = null)
     {
+        var storageFile = Path.Combine(CharacterStore.GetDataDirectory(characterId), "auto-letter-settings.json");
         try
         {
-            if (!File.Exists(StorageFile))
+            if (!File.Exists(storageFile))
             {
                 return new AutoLetterSettings();
             }
 
-            return JsonSerializer.Deserialize<AutoLetterSettings>(File.ReadAllText(StorageFile), JsonOptions) ?? new AutoLetterSettings();
+            return JsonSerializer.Deserialize<AutoLetterSettings>(File.ReadAllText(storageFile), JsonOptions) ?? new AutoLetterSettings();
         }
         catch (IOException)
         {
@@ -40,11 +36,13 @@ internal static class AutoLetterStore
         }
     }
 
-    public static void Save(AutoLetterSettings settings)
+    public static void Save(AutoLetterSettings settings, string? characterId = null)
     {
-        Directory.CreateDirectory(StorageDirectory);
-        var temporaryFile = StorageFile + ".tmp";
+        var directory = CharacterStore.GetDataDirectory(characterId);
+        Directory.CreateDirectory(directory);
+        var storageFile = Path.Combine(directory, "auto-letter-settings.json");
+        var temporaryFile = storageFile + ".tmp";
         File.WriteAllText(temporaryFile, JsonSerializer.Serialize(settings, JsonOptions));
-        File.Move(temporaryFile, StorageFile, true);
+        File.Move(temporaryFile, storageFile, true);
     }
 }

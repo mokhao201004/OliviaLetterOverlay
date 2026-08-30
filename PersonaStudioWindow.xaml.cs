@@ -6,6 +6,7 @@ namespace OliviaLetterOverlay;
 
 public partial class PersonaStudioWindow : Window
 {
+    private readonly string _characterId = CharacterStore.Current.Id;
     private readonly List<string> _sentImagePaths = [];
     private readonly List<string> _replyImagePaths = [];
     private List<PersonaReferenceLetter> _referenceLetters = [];
@@ -16,7 +17,7 @@ public partial class PersonaStudioWindow : Window
     public PersonaStudioWindow()
     {
         InitializeComponent();
-        var activeProfile = PersonaStore.Load();
+        var activeProfile = PersonaStore.Load(_characterId);
         if (activeProfile is null)
         {
             StatusText.Text = "尚未启用自定义人设。";
@@ -113,10 +114,10 @@ public partial class PersonaStudioWindow : Window
                 Prompt = prompt,
                 ReferenceLetters = _referenceLetters,
                 Memories = _memories,
-            });
+            }, _characterId);
             if (Owner?.Owner is MainWindow mailbox)
             {
-                mailbox.ImportReferenceLetters(_referenceLetters);
+                mailbox.ImportReferenceLetters(_referenceLetters, _characterId);
             }
 
             StatusText.Text = "已启用并保存。成对信件已加入侧边信箱，之后写信会自动使用。";

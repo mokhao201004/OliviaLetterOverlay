@@ -13,7 +13,8 @@ internal static class OllamaClient
     {
         try
         {
-            using var response = await Client.GetAsync(BuildUri(baseUrl, "/api/tags"));
+            using var request = new HttpRequestMessage(HttpMethod.Get, BuildUri(baseUrl, "/api/tags"));
+            using var response = await DiagnosticLog.SendAsync(Client, request, "ollama.models");
             if (!response.IsSuccessStatusCode)
             {
                 throw new InvalidOperationException("本地模型服务还没准备好。请先安装并打开 Ollama，再刷新即可。");
@@ -40,6 +41,7 @@ internal static class OllamaClient
 
     public static async Task PullModelAsync(string baseUrl, string model, IProgress<string>? progress, CancellationToken cancellationToken)
     {
+        using var trace = new DiagnosticLog.DownloadTrace(model);
         try
         {
             var payload = JsonSerializer.Serialize(new { model, stream = true });
@@ -47,10 +49,11 @@ internal static class OllamaClient
             {
                 Content = new StringContent(payload, Encoding.UTF8, "application/json"),
             };
-            using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            using var response = await DiagnosticLog.SendAsync(Client, request, "ollama.pull", model, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                throw new InvalidOperationException("模型下载没有开始。请先安装并打开 Ollama，再试一次。");
+                var detail = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new InvalidOperationException($"模型下载失败（HTTP {(int)response.StatusCode}）：{DiagnosticLog.Redact(detail)}");
             }
 
             await using var body = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -61,7 +64,7 @@ internal static class OllamaClient
                 var line = await reader.ReadLineAsync(cancellationToken);
                 if (line is null)
                 {
-                    break;
+                    throw new IOException("下载连接已结束，但没有收到完成确认。可导出日志排查后重试。");
                 }
 
                 if (string.IsNullOrWhiteSpace(line))
@@ -71,9 +74,24 @@ internal static class OllamaClient
 
                 using var update = JsonDocument.Parse(line);
                 var root = update.RootElement;
+                if (root.TryGetProperty("error", out var error))
+                {
+                    throw new InvalidOperationException($"模型下载失败：{DiagnosticLog.Redact(error.ToString())}");
+                }
+
                 var status = root.TryGetProperty("status", out var statusValue) ? statusValue.GetString() : null;
-                if (root.TryGetProperty("completed", out var completed) && root.TryGetProperty("total", out var total)
-                    && completed.TryGetInt64(out var completedBytes) && total.TryGetInt64(out var totalBytes) && totalBytes > 0)
+                var digest = root.TryGetProperty("digest", out var digestValue) ? digestValue.GetString() : null;
+                var completedBytes = root.TryGetProperty("completed", out var completed) && completed.TryGetInt64(out var done) ? done : 0;
+                var totalBytes = root.TryGetProperty("total", out var total) && total.TryGetInt64(out var size) ? size : 0;
+                trace.Update(status, digest, completedBytes, totalBytes);
+                if (status == "success")
+                {
+                    trace.Finish("success");
+                    progress?.Report("下载完成");
+                    return;
+                }
+
+                if (totalBytes > 0)
                 {
                     progress?.Report($"{status ?? "正在下载"} · {completedBytes * 100 / totalBytes}%");
                 }
@@ -85,7 +103,13 @@ internal static class OllamaClient
         }
         catch (HttpRequestException exception)
         {
+            trace.Finish($"failed {exception.GetType().Name}: {exception.Message}");
             throw new InvalidOperationException("本地模型服务还没启动。先点击“下载 Ollama”安装并打开它，再下载模型。", exception);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidOperationException or JsonException or OperationCanceledException)
+        {
+            trace.Finish($"failed {exception.GetType().Name}: {exception.Message}");
+            throw;
         }
     }
 

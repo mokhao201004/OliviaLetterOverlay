@@ -5,10 +5,13 @@ namespace OliviaLetterOverlay;
 
 public partial class MemoryWindow : Window
 {
+    private readonly string _characterId = CharacterStore.Current.Id;
+
     public MemoryWindow()
     {
         InitializeComponent();
-        var profile = PersonaStore.Load();
+        MemoryTitleText.Text = $"{CharacterStore.Get(_characterId).Name} · 记忆库";
+        var profile = PersonaStore.Load(_characterId);
         var memories = profile?.Memories ?? [];
         MemoryBox.Text = string.Join(Environment.NewLine, memories);
         StatusText.Text = memories.Count == 0 ? "还没有保存的记忆。" : $"当前有 {memories.Count} 条记忆。";
@@ -27,10 +30,10 @@ public partial class MemoryWindow : Window
 
         try
         {
-            var profile = PersonaStore.Load() ?? new PersonaProfile();
+            var profile = PersonaStore.Load(_characterId) ?? new PersonaProfile();
             profile.UpdatedAt = DateTime.Now;
             profile.Memories = memories;
-            PersonaStore.Save(profile);
+            PersonaStore.Save(profile, _characterId);
             StatusText.Text = $"已保存 {memories.Count} 条记忆。";
         }
         catch (System.IO.IOException)
@@ -45,7 +48,7 @@ public partial class MemoryWindow : Window
         {
             AnalyzeMemoryButton.IsEnabled = false;
             StatusText.Text = "正在分析侧边信箱中的往来…";
-            var analyzedMemories = await MimoClient.AnalyzeMemoriesAsync(LetterStore.Load());
+            var analyzedMemories = await MimoClient.AnalyzeMemoriesAsync(LetterStore.Load(_characterId));
             var currentMemories = MemoryBox.Text
                 .Replace("\r", string.Empty)
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)

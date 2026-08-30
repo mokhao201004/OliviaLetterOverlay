@@ -36,23 +36,19 @@ internal sealed class PersonaAnalysisResult
 
 internal static class PersonaStore
 {
-    private static readonly string StorageDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OliviaLetterOverlay");
-
-    private static readonly string StorageFile = Path.Combine(StorageDirectory, "persona-profile.json");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    public static PersonaProfile? Load()
+    public static PersonaProfile? Load(string? characterId = null)
     {
+        var storageFile = Path.Combine(CharacterStore.GetDataDirectory(characterId), "persona-profile.json");
         try
         {
-            if (!File.Exists(StorageFile))
+            if (!File.Exists(storageFile))
             {
                 return null;
             }
 
-            return JsonSerializer.Deserialize<PersonaProfile>(File.ReadAllText(StorageFile), JsonOptions);
+            return JsonSerializer.Deserialize<PersonaProfile>(File.ReadAllText(storageFile), JsonOptions);
         }
         catch (IOException)
         {
@@ -64,11 +60,13 @@ internal static class PersonaStore
         }
     }
 
-    public static void Save(PersonaProfile profile)
+    public static void Save(PersonaProfile profile, string? characterId = null)
     {
-        Directory.CreateDirectory(StorageDirectory);
-        var temporaryFile = StorageFile + ".tmp";
+        var directory = CharacterStore.GetDataDirectory(characterId);
+        Directory.CreateDirectory(directory);
+        var storageFile = Path.Combine(directory, "persona-profile.json");
+        var temporaryFile = storageFile + ".tmp";
         File.WriteAllText(temporaryFile, JsonSerializer.Serialize(profile, JsonOptions));
-        File.Move(temporaryFile, StorageFile, true);
+        File.Move(temporaryFile, storageFile, true);
     }
 }

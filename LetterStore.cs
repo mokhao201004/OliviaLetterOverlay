@@ -22,23 +22,19 @@ public sealed class SavedLetter
 
 internal static class LetterStore
 {
-    private static readonly string StorageDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "OliviaLetterOverlay");
-
-    private static readonly string StorageFile = Path.Combine(StorageDirectory, "letters.json");
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    public static List<SavedLetter> Load()
+    public static List<SavedLetter> Load(string? characterId = null)
     {
+        var storageFile = Path.Combine(CharacterStore.GetDataDirectory(characterId), "letters.json");
         try
         {
-            if (!File.Exists(StorageFile))
+            if (!File.Exists(storageFile))
             {
                 return [];
             }
 
-            return JsonSerializer.Deserialize<List<SavedLetter>>(File.ReadAllText(StorageFile), JsonOptions) ?? [];
+            return JsonSerializer.Deserialize<List<SavedLetter>>(File.ReadAllText(storageFile), JsonOptions) ?? [];
         }
         catch (IOException)
         {
@@ -50,11 +46,13 @@ internal static class LetterStore
         }
     }
 
-    public static void Save(IReadOnlyList<SavedLetter> letters)
+    public static void Save(IReadOnlyList<SavedLetter> letters, string? characterId = null)
     {
-        Directory.CreateDirectory(StorageDirectory);
-        var temporaryFile = StorageFile + ".tmp";
+        var directory = CharacterStore.GetDataDirectory(characterId);
+        Directory.CreateDirectory(directory);
+        var storageFile = Path.Combine(directory, "letters.json");
+        var temporaryFile = storageFile + ".tmp";
         File.WriteAllText(temporaryFile, JsonSerializer.Serialize(letters, JsonOptions));
-        File.Move(temporaryFile, StorageFile, true);
+        File.Move(temporaryFile, storageFile, true);
     }
 }

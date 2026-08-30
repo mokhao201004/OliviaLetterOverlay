@@ -9,6 +9,7 @@ namespace OliviaLetterOverlay;
 internal static class MimoClient
 {
     private const string ApiUrl = "https://api.xiaomimimo.com/v1/chat/completions";
+    private const int ReplyTokenBudget = 4096;
     private static readonly HttpClient Client = new()
     {
         Timeout = TimeSpan.FromMinutes(5),
@@ -16,8 +17,9 @@ internal static class MimoClient
 
     public static bool IsConfigured => AiProviderStore.IsConfigured;
 
-    public static async Task<string> GenerateReplyAsync(string letter, IReadOnlyList<SavedLetter> history)
+    public static async Task<string> GenerateReplyAsync(string letter, IReadOnlyList<SavedLetter> history, string? characterId = null)
     {
+        characterId ??= CharacterStore.Current.Id;
         if (!IsConfigured)
         {
             throw new InvalidOperationException(AiProviderStore.MissingConfigurationMessage());
@@ -28,7 +30,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = BuildReplySystemPrompt(),
+                content = BuildReplySystemPrompt(characterId) + BuildDiversityBlock(isProactive: false),
             },
         };
 
@@ -44,18 +46,88 @@ internal static class MimoClient
         messages.Add(new
         {
             role = "user",
-            content = "请从第一句开始回应我这封信最重要的内容：\n" + letter,
+            content = "请回应这封信：\n" + letter,
         });
 
-        var reply = await RequestCompletionAsync(messages, 300);
-
-        return string.IsNullOrWhiteSpace(reply)
-            ? throw new InvalidOperationException("当前 AI 服务未返回可显示的回信。内容仍在本地。")
-            : NormalizeReply(reply);
+        var reply = await RequestCompletionAsync(messages, ReplyTokenBudget);
+        reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name);
+        return NormalizeReply(reply ?? string.Empty, characterId);
     }
 
-    public static async Task<string> GenerateProactiveLetterAsync(IReadOnlyList<SavedLetter> history)
+    public static async Task LearnUserStyleAsync(string draft, string? characterId = null)
     {
+        characterId ??= CharacterStore.Current.Id;
+        if (!IsConfigured || string.IsNullOrWhiteSpace(draft))
+        {
+            return;
+        }
+
+        try
+        {
+            var observation = await RequestCompletionAsync(new List<object>
+            {
+                new
+                {
+                    role = "system",
+                    content = "你是说话习惯观察器。只输出一行，以「用户说话：」开头，概括这段文字的说话方式（句长、用词、语气、标点或口头禅），不超过 30 字，不要评价内容，不要输出其他任何东西。",
+                },
+                new { role = "user", content = draft.Trim() },
+            }, 96);
+            observation = NormalizeStyleObservation(observation);
+            if (string.IsNullOrWhiteSpace(observation))
+            {
+                return;
+            }
+
+            var persona = PersonaStore.Load(characterId) ?? new PersonaProfile();
+            var limit = StylePreferencesStore.Load().StyleMemoryLimit;
+            persona.Memories = MergeStyleMemories(persona.Memories, observation, limit);
+            PersonaStore.Save(persona, characterId);
+            DiagnosticLog.Write("ai.style", $"learned characters={observation.Length} total={persona.Memories.Count}");
+        }
+        catch (Exception exception)
+        {
+            // 风格学习是后台增强，失败只记日志，不影响写信与回信。
+            DiagnosticLog.Write("ai.style", "learn_failed error=" + DiagnosticLog.Redact(exception.Message));
+        }
+    }
+
+    public static List<string> MergeStyleMemories(IReadOnlyList<string> existing, string observation, int limit)
+    {
+        var others = existing.Where(item => !item.StartsWith("用户说话：", StringComparison.Ordinal)).ToList();
+        var styles = existing
+            .Where(item => item.StartsWith("用户说话：", StringComparison.Ordinal) && !item.Equals(observation, StringComparison.Ordinal))
+            .ToList();
+        styles.Insert(0, observation);
+        if (limit > 0)
+        {
+            styles = styles.Take(limit).ToList();
+        }
+
+        return others.Concat(styles).ToList();
+    }
+
+    private static string NormalizeStyleObservation(string? observation)
+    {
+        var text = (observation ?? string.Empty).Trim().Trim('"', '「', '」', '“', '”');
+        var marker = "用户说话：";
+        var index = text.IndexOf(marker, StringComparison.Ordinal);
+        if (index >= 0)
+        {
+            text = text[(index + marker.Length)..].Trim();
+        }
+
+        if (text.Length > 60)
+        {
+            text = text[..60];
+        }
+
+        return text.Length == 0 ? string.Empty : "用户说话：" + text;
+    }
+
+    public static async Task<string> GenerateProactiveLetterAsync(IReadOnlyList<SavedLetter> history, string? characterId = null)
+    {
+        characterId ??= CharacterStore.Current.Id;
         if (!IsConfigured)
         {
             throw new InvalidOperationException(AiProviderStore.MissingConfigurationMessage());
@@ -66,7 +138,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = BuildReplySystemPrompt() + "\n\n现在请主动写一封来信。不要假装刚收到用户的新信，也不要编造没有记录的事件；优先从记忆或最近往来中选择一个自然相关的小切口。若没有相关记忆，就写一封克制、具体的近况问候。",
+                content = BuildReplySystemPrompt(characterId) + BuildDiversityBlock(isProactive: true) + "\n\n现在请主动写一封来信。这封信没有需要回应的来信，也不必回答任何问题：选一个具体的小主题，按逻辑从头到尾把它说清楚、写连贯就好，可以只围绕这一件事展开。不要假装刚收到用户的新信，也不要编造没有记录的事件；优先从记忆或最近往来中选择一个自然相关的小切口。若没有相关记忆，就写一封克制、具体的近况问候。",
             },
         };
 
@@ -80,10 +152,51 @@ internal static class MimoClient
         }
 
         messages.Add(new { role = "user", content = "请写这一封主动来信。" });
-        var reply = await RequestCompletionAsync(messages, 300);
-        return string.IsNullOrWhiteSpace(reply)
-            ? throw new InvalidOperationException("当前 AI 服务未返回可显示的主动来信。")
-            : NormalizeReply(reply);
+        var reply = await RequestCompletionAsync(messages, ReplyTokenBudget);
+        reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name);
+        return NormalizeReply(reply ?? string.Empty, characterId);
+    }
+
+    // 生成后做一次硬校验；命中问题时附带具体违规清单重写一次，
+    // 修复稿问题不多于原稿才采用，否则保留原稿。修复是增强步骤：
+    // 任何失败（网络、服务关闭、超时）都只记日志并退回原稿，绝不打断回信。
+    private static async Task<string?> RepairIfNeededAsync(List<object> messages, string? reply, string signatureName)
+    {
+        var draft = reply ?? string.Empty;
+        var issues = LetterQualityCheck.Validate(draft, signatureName);
+        if (issues.Count == 0)
+        {
+            return reply;
+        }
+
+        DiagnosticLog.Write("ai.quality", "repair issues=" + issues.Count);
+        try
+        {
+            // 修复是增强步骤：45 秒内没回来就放弃并退回原稿，绝不让用户干等。
+            var repairTask = RequestCompletionAsync(
+                LetterQualityCheck.BuildRepairMessages(messages, draft, issues), ReplyTokenBudget);
+            var completed = await Task.WhenAny(repairTask, Task.Delay(TimeSpan.FromSeconds(45)));
+            if (completed != repairTask)
+            {
+                DiagnosticLog.Write("ai.quality", "repair_timeout");
+                return reply;
+            }
+
+            var repaired = await repairTask;
+            if (string.IsNullOrWhiteSpace(repaired))
+            {
+                return reply;
+            }
+
+            var remaining = LetterQualityCheck.Validate(repaired, signatureName);
+            DiagnosticLog.Write("ai.quality", "repair_applied remaining=" + remaining.Count);
+            return remaining.Count <= issues.Count ? repaired : reply;
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Write("ai.quality", "repair_failed error=" + DiagnosticLog.Redact(exception.Message));
+            return reply;
+        }
     }
 
     public static async Task<List<string>> AnalyzeMemoriesAsync(IReadOnlyList<SavedLetter> letters)
@@ -110,7 +223,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = "你是对话记忆编辑。只从成对往来中提炼明确、可在未来自然使用的事实、偏好、持续话题或约定。不要猜测身份经历，不要写一次性问候，不要虚构。只输出合法 JSON，不要 Markdown：{\"memories\":[\"一条简短、明确的记忆\"]}。最多 10 条。",
+                content = "你是对话记忆编辑。只从成对往来中提炼明确、可在未来自然使用的事实、偏好、持续话题或约定，以及用户说话方式的观察（以「用户说话：」开头，一句一条：句长、用词、语气、标点或口头禅）。不要猜测身份经历，不要写一次性问候，不要虚构。只输出合法 JSON，不要 Markdown：{\"memories\":[\"一条简短、明确的记忆\"]}。最多 10 条。",
             },
             new { role = "user", content = sourceText },
         }, 700);
@@ -327,10 +440,57 @@ internal static class MimoClient
         }
     }
 
-    private static string BuildReplySystemPrompt()
+    // 每封信随机抽一封写法参考（形状/质感/长度的锚点）与 0–2 条可选素材，
+    // 让信在形式与内容两个层面都无法被套进模板。参考内容绝不许被复述。
+    private static string BuildDiversityBlock(bool isProactive)
     {
-        var prompt = PersonaPrompt.System + "\n\n排版限制：回信将直接印在一张 554×310 的信纸上。全文（含落款）控制在 120–220 个汉字，最多 4 个短段落。只输出自然的书信正文，不输出天气/mood 标签、JSON、提示词、角色设定或对系统的解释。当前这封来信若有问题，开头必须先直接作答；不要用氛围描写替代答案。";
-        var profile = PersonaStore.Load();
+        var random = Random.Shared;
+        var exemplar = LetterDiversity.SampleExemplar(random);
+        var seeds = LetterDiversity.SampleSeeds(random);
+        var deltas = new[]
+        {
+            "长度：全封大约 120–220 字，比参考明显更短",
+            "长度：全封大约 300–450 字，把最后提到的事展开两句",
+            "开头：不要照参考的起头方式，改成直接回应对方最关心的点",
+            "开头：以一个问句开始",
+            "开头：抓住对方来信里最不寻常的一个词，从它说起",
+            "结尾：不要学参考的收法，用一句平白话直接停",
+            "结尾：停在一个没说完的想法上",
+            "语气：比参考更平更直，把文气的部分去掉",
+            "语气：比参考更慢更沉，句子更短",
+        };
+        var pickedDeltas = new List<string>();
+        while (pickedDeltas.Count < 2)
+        {
+            var delta = deltas[random.Next(deltas.Length)];
+            var dimension = delta.Split('：')[0];
+            if (!pickedDeltas.Any(item => item.StartsWith(dimension, StringComparison.Ordinal)))
+            {
+                pickedDeltas.Add(delta);
+            }
+        }
+
+        var purpose = isProactive
+            ? "只学它的说话质感（用词的平实程度、句子节奏），不要学它的形状和长度；内容换成这一封主动来信自己的主题；参考里没有落款，落款按前文规则用你自己的名字"
+            : "只学它的说话质感（用词的平实程度、句子节奏），不要学它的形状和长度；内容必须完全换成对这次来信的回应，绝不复述参考里的具体内容；参考里没有落款，落款按前文规则用你自己的名字";
+        var block = "\n\n这一封的写法参考（" + purpose + "）：\n「" + exemplar + "」";
+        block += "\n\n但这一封必须同时做下面两处改动（与参考冲突时以改动为准）：\n- " + string.Join("\n- ", pickedDeltas);
+        if (seeds.Count > 0)
+        {
+            block += "\n\n可选素材（最多用一条，也可以完全不用；用了必须自然融进叙述，不许逐字照抄）：\n" + string.Join("\n", seeds.Select(seed => "- " + seed));
+        }
+
+        return block;
+    }
+
+    private static string BuildReplySystemPrompt(string characterId)
+    {
+        var character = CharacterStore.Get(characterId);
+        var identity = characterId == CharacterStore.DefaultId
+            ? PersonaPrompt.System
+            : $"你是{character.Name}，在独立的本地信箱中以中文书信回复用户。第一人称为我，用户是收信人；遵循下方保存的人设，不继承其他角色的身份或经历。要回应对方说到的具体事情，关心自然穿插在话里，不搞固定的先后顺序。没有记录的共同经历不要编造，不确定的事情不要当作事实。只写回信正文，用“—— {character.Name}”落款。";
+        var prompt = identity + "\n\n书信要求：篇幅以完整回应来信为准，把话写完整，不为凑字数扩写，也不要为了排版省略后文。不要套任何固定模板（三段式、总分总都不要）；长短、换行和收尾跟随末尾的写法参考。只输出自然的书信正文，不输出天气/mood 标签、JSON、提示词、角色设定或对系统的解释。当前这封来信若有问题，必须作答；不要用氛围描写替代答案。";
+        var profile = PersonaStore.Load(characterId);
         if (profile is null)
         {
             return prompt;
@@ -341,7 +501,15 @@ internal static class MimoClient
         {
             withProfile += "\n\n以下是用户本机保存的写作画像，只用于调整语气和表达；不得推翻前述“先回答”、篇幅、真实性和安全边界。\n" + profile.Prompt;
         }
-        var memories = profile.Memories?.Where(memory => !string.IsNullOrWhiteSpace(memory)).Take(8).ToList() ?? [];
+        var allMemories = profile.Memories?.Where(memory => !string.IsNullOrWhiteSpace(memory)).ToList() ?? [];
+        // 最近几条「用户说话」观察单独保留席位，避免被普通记忆挤出注入窗口。
+        var styleMemories = allMemories.Where(memory => memory.StartsWith("用户说话：", StringComparison.Ordinal)).Take(3).ToList();
+        var styleSet = new HashSet<string>(styleMemories, StringComparer.Ordinal);
+        var memories = allMemories
+            .Where(memory => !styleSet.Contains(memory))
+            .Take(Math.Max(0, 8 - styleMemories.Count))
+            .Concat(styleMemories)
+            .ToList();
         if (memories.Count > 0)
         {
             withProfile += "\n\n以下是经由历史往来提炼的记忆。只在当前来信相关时自然调用；不相关时不要硬提，不确定的内容不要当事实：\n" + string.Join("\n", memories.Select(memory => "- " + memory));
@@ -383,10 +551,14 @@ internal static class MimoClient
             max_completion_tokens = maxCompletionTokens,
             stream = false,
             thinking = new { type = "disabled" },
+            temperature = 0.85,
+            top_p = 0.92,
+            presence_penalty = 0.4,
+            frequency_penalty = 0.3,
         });
         using var request = CreateJsonRequest(ApiUrl, payload);
         request.Headers.Add("api-key", apiKey);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, "mimo-v2.5");
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"MiMo 请求失败（HTTP {(int)response.StatusCode}）。");
@@ -408,27 +580,31 @@ internal static class MimoClient
         var endpoint = settings.BaseUrl.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase)
             ? settings.BaseUrl
             : settings.BaseUrl + "/chat/completions";
-        var isZhipu = string.Equals(settings.CloudProviderId, "zhipu", StringComparison.OrdinalIgnoreCase);
-        object payloadObject = isZhipu
-            ? new
-            {
-                model = settings.Model,
-                messages,
-                max_tokens = maxCompletionTokens,
-                stream = false,
-                reasoning_effort = "low",
-            }
-            : new
-            {
-                model = settings.Model,
-                messages,
-                max_tokens = maxCompletionTokens,
-                stream = false,
-            };
+        var payloadObject = new Dictionary<string, object>
+        {
+            ["model"] = settings.Model,
+            ["messages"] = messages,
+            ["max_tokens"] = maxCompletionTokens,
+            ["stream"] = false,
+            ["temperature"] = 0.85,
+            ["top_p"] = 0.92,
+            ["presence_penalty"] = 0.4,
+            ["frequency_penalty"] = 0.3,
+        };
+        if (string.Equals(settings.CloudProviderId, "deepseek", StringComparison.OrdinalIgnoreCase))
+        {
+            // DeepSeek V4 enables thinking by default; ordinary letters need the final answer.
+            payloadObject["thinking"] = new { type = "disabled" };
+        }
+        else if (string.Equals(settings.CloudProviderId, "zhipu", StringComparison.OrdinalIgnoreCase))
+        {
+            // GLM-5.3 requires thinking, so retain its supported low-effort mode.
+            payloadObject["reasoning_effort"] = "low";
+        }
         var payload = JsonSerializer.Serialize(payloadObject);
         using var request = CreateJsonRequest(endpoint, payload);
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, settings.Model);
         if (!response.IsSuccessStatusCode)
         {
             var error = await response.Content.ReadAsStringAsync();
@@ -459,10 +635,18 @@ internal static class MimoClient
             messages = ToTextOnlyMessages(messages),
             stream = false,
             think = false,
-            options = new { num_predict = maxCompletionTokens },
+            options = new
+            {
+                num_predict = maxCompletionTokens,
+                temperature = 0.8,
+                top_p = 0.92,
+                repeat_penalty = 1.1,
+                presence_penalty = 0.4,
+                frequency_penalty = 0.3,
+            },
         });
         using var request = CreateJsonRequest(endpoint, payload);
-        using var response = await SendAsync(request);
+        using var response = await SendAsync(request, settings.Model);
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException($"本地 Ollama 请求失败（HTTP {(int)response.StatusCode}）。请确认服务已启动且模型已下载。");
@@ -470,10 +654,14 @@ internal static class MimoClient
 
         await using var body = await response.Content.ReadAsStreamAsync();
         using var document = await JsonDocument.ParseAsync(body);
-        return document.RootElement.TryGetProperty("message", out var message)
-            && message.TryGetProperty("content", out var content)
-            ? ReadContent(content)
-            : null;
+        var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("message", out var message))
+        {
+            throw InvalidCompletionFormat();
+        }
+
+        return ReadCompletedContent(message, ReadStringProperty(root, "done_reason"),
+            !root.TryGetProperty("done", out var done) || done.ValueKind == JsonValueKind.True);
     }
 
     private static HttpRequestMessage CreateJsonRequest(string endpoint, string payload) => new(HttpMethod.Post, endpoint)
@@ -498,17 +686,83 @@ internal static class MimoClient
         return converted;
     }
 
-    private static string? ReadOpenAiStyleContent(JsonElement root)
+    private static string ReadOpenAiStyleContent(JsonElement root)
     {
-        if (!root.TryGetProperty("choices", out var choices) || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
+        if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("choices", out var choices)
+            || choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0)
         {
-            return null;
+            throw InvalidCompletionFormat();
         }
 
         var choice = choices[0];
-        return choice.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content)
-            ? ReadContent(content)
-            : null;
+        if (choice.ValueKind != JsonValueKind.Object || !choice.TryGetProperty("message", out var message))
+        {
+            throw InvalidCompletionFormat();
+        }
+
+        return ReadCompletedContent(message, ReadStringProperty(choice, "finish_reason"));
+    }
+
+    private static InvalidOperationException InvalidCompletionFormat()
+    {
+        DiagnosticLog.Write("ai.response", "outcome=invalid_format");
+        return new InvalidOperationException("AI 服务返回的聊天数据格式不正确。请确认 URL 对应聊天接口；草稿仍在本地，可导出诊断日志排查。");
+    }
+
+    private static string? ReadStringProperty(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+
+    private static string ReadCompletedContent(JsonElement message, string? finishReason, bool completed = true)
+    {
+        if (message.ValueKind != JsonValueKind.Object)
+        {
+            throw InvalidCompletionFormat();
+        }
+
+        var content = message.TryGetProperty("content", out var value) ? ReadContent(value) : string.Empty;
+        var reasoningLength = (ReadStringProperty(message, "reasoning_content")?.Length ?? 0)
+            + (ReadStringProperty(message, "thinking")?.Length ?? 0);
+        var safeReason = finishReason switch
+        {
+            "stop" or "length" or "max_tokens" or "content_filter" or "tool_calls" or "function_call" or "insufficient_system_resource" => finishReason,
+            null or "" => "missing",
+            _ => "other",
+        };
+        DiagnosticLog.Write("ai.response", $"finish_reason={safeReason} completed={completed} content_chars={content.Length} reasoning_chars={reasoningLength}");
+
+        if (finishReason is "length" or "max_tokens")
+        {
+            throw new InvalidOperationException("AI 生成达到长度上限，尚未完成正文，未保存不完整的回信。草稿仍在本地；请缩短本次请求或换用非思考模型后重试。");
+        }
+
+        if (!completed)
+        {
+            throw new InvalidOperationException("AI 服务在生成完成前结束了响应，未保存不完整的回信。草稿仍在本地，请重试。");
+        }
+
+        if (finishReason == "insufficient_system_resource")
+        {
+            throw new InvalidOperationException("AI 服务因服务器资源不足中断了生成，未保存不完整的回信。草稿仍在本地，请稍后重试。");
+        }
+
+        if (finishReason == "content_filter")
+        {
+            throw new InvalidOperationException("AI 服务因内容过滤未完成回复。草稿仍在本地，请调整来信后重试。");
+        }
+
+        if (finishReason is "tool_calls" or "function_call")
+        {
+            throw new InvalidOperationException("AI 服务返回了工具调用，而不是书信正文。请使用普通聊天模型；草稿仍在本地。");
+        }
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new InvalidOperationException(reasoningLength > 0
+                ? "AI 服务只返回了思考过程，没有返回回信正文。请使用非思考模型，或检查中转服务是否完整转发了正文；草稿仍在本地。"
+                : "AI 服务返回了空正文。请重试或检查模型及中转服务；草稿仍在本地，可导出诊断日志排查。");
+        }
+
+        return content;
     }
 
     private static string ReadContent(JsonElement content)
@@ -530,7 +784,9 @@ internal static class MimoClient
             {
                 fragments.Add(item.GetString() ?? string.Empty);
             }
-            else if (item.TryGetProperty("text", out var text))
+            else if (item.ValueKind == JsonValueKind.Object
+                && ReadStringProperty(item, "type") is null or "text" or "output_text"
+                && item.TryGetProperty("text", out var text) && text.ValueKind == JsonValueKind.String)
             {
                 fragments.Add(text.GetString() ?? string.Empty);
             }
@@ -539,11 +795,11 @@ internal static class MimoClient
         return string.Concat(fragments);
     }
 
-    private static async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request)
+    private static async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, string model)
     {
         try
         {
-            return await Client.SendAsync(request);
+            return await DiagnosticLog.SendAsync(Client, request, "ai.request", model);
         }
         catch (HttpRequestException exception)
         {
@@ -561,12 +817,13 @@ internal static class MimoClient
         _ => throw new InvalidOperationException("仅支持 PNG、JPG、GIF、WebP 或 BMP 图片。"),
     };
 
-    private static string NormalizeReply(string reply)
+    private static string NormalizeReply(string reply, string characterId)
     {
+        var name = CharacterStore.Get(characterId).Name;
         var normalizedSource = reply.Replace("\r", string.Empty);
-        if (normalizedSource.StartsWith("亲爱的林离", StringComparison.Ordinal) || normalizedSource.StartsWith("林离，", StringComparison.Ordinal) || normalizedSource.StartsWith("林离:", StringComparison.Ordinal))
+        if (normalizedSource.StartsWith($"亲爱的{name}", StringComparison.Ordinal) || normalizedSource.StartsWith($"{name}，", StringComparison.Ordinal) || normalizedSource.StartsWith($"{name}:", StringComparison.Ordinal))
         {
-            var withoutGreeting = normalizedSource.StartsWith("亲爱的林离", StringComparison.Ordinal)
+            var withoutGreeting = normalizedSource.StartsWith($"亲爱的{name}", StringComparison.Ordinal)
                 ? string.Empty
                 : normalizedSource.Split(['，', ':'], 2) is { Length: 2 } parts ? parts[1] : normalizedSource;
             normalizedSource = string.IsNullOrWhiteSpace(withoutGreeting) ? normalizedSource : withoutGreeting.TrimStart();
@@ -590,20 +847,29 @@ internal static class MimoClient
         }
 
         var text = string.Join('\n', collapsed).Trim();
-        if (text.Length <= 260)
+        // 用户要求信里不出现引号：显示前机械剥除各种引号字符，引用一律变直接转述。
+        text = text
+            .Replace("“", string.Empty)
+            .Replace("”", string.Empty)
+            .Replace("「", string.Empty)
+            .Replace("」", string.Empty)
+            .Replace("『", string.Empty)
+            .Replace("』", string.Empty)
+            .Replace("\"", string.Empty);
+        text = RareCharGuard.ReplaceKnownConfusions(text);
+        var rareChars = text.Where(character => !RareCharGuard.IsCommon(character)).Distinct().ToList();
+        if (rareChars.Count > 0)
         {
-            return text;
+            DiagnosticLog.Write("ai.style", "rare_chars=" + string.Join(string.Empty, rareChars));
         }
 
-        const int preferredCut = 238;
-        var cut = text.LastIndexOfAny(['。', '！', '？', '\n'], preferredCut);
-        if (cut < 150)
+        if (string.IsNullOrWhiteSpace(text))
         {
-            cut = preferredCut;
+            DiagnosticLog.Write("ai.response", "outcome=empty_after_cleanup");
+            throw new InvalidOperationException("AI 回信没有可显示的正文，只有空白或元信息。草稿仍在本地，请重试。");
         }
 
-        var shortened = text[..(cut + 1)].TrimEnd('。', '！', '？', ' ', '\n');
-        return shortened + "。\n—— 林离";
+        return text;
     }
 
     private static bool IsMetadataLine(string line)

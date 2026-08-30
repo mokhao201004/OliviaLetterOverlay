@@ -19,7 +19,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
-                <TextBlock Text="记忆库" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="21" FontWeight="Bold" />
+                <TextBlock x:Name="MemoryTitleText" Text="记忆库" MaxWidth="440" TextTrimming="CharacterEllipsis" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="21" FontWeight="Bold" />
                 <Button Width="30" Height="30" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" Foreground="#FFAEB1B7" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE8BB;" Cursor="Hand" Click="CloseButton_OnClick" />
             </Grid>
             <TextBlock Grid.Row="1" Margin="0,8,0,16" Text="一行一条。只记录确定、可在后续信件中自然提起的事；不相关时不会强行引用。" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />

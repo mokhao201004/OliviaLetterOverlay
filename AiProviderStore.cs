@@ -160,15 +160,19 @@ internal static class AiProviderStore
         var processValue = Environment.GetEnvironmentVariable(name);
         if (!string.IsNullOrWhiteSpace(processValue))
         {
+            DiagnosticLog.RegisterSecret(processValue);
             return processValue.Trim();
         }
 
-        return Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User)?.Trim();
+        var userValue = Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User)?.Trim();
+        DiagnosticLog.RegisterSecret(userValue);
+        return userValue;
     }
 
     private static void SaveEnvironmentValue(string name, string value)
     {
         var trimmed = value.Trim();
+        DiagnosticLog.RegisterSecret(trimmed);
         Environment.SetEnvironmentVariable(name, trimmed, EnvironmentVariableTarget.User);
         Environment.SetEnvironmentVariable(name, trimmed, EnvironmentVariableTarget.Process);
     }

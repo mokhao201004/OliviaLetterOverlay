@@ -17,13 +17,53 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource HiddenScrollBarStyle}">
+                        <Setter Property="Width" Value="6" />
+                        <Setter Property="Margin" Value="0,4,2,4" />
+                        <Setter Property="Background" Value="Transparent" />
+                        <Setter Property="Opacity" Value="0" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ScrollBar">
+                                    <Grid Background="Transparent">
+                                        <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True">
+                                            <Track.DecreaseRepeatButton>
+                                                <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}" Background="Transparent" BorderThickness="0" IsTabStop="False" />
+                                            </Track.DecreaseRepeatButton>
+                                            <Track.Thumb>
+                                                <Thumb Background="#FF5C6068" BorderThickness="0">
+                                                    <Thumb.Template>
+                                                        <ControlTemplate TargetType="Thumb">
+                                                            <Border x:Name="ThumbSurface" Background="{TemplateBinding Background}" CornerRadius="3" />
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="ThumbSurface" Property="Background" Value="#FF858991" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsDragging" Value="True">
+                                                                    <Setter TargetName="ThumbSurface" Property="Background" Value="#FFB4B0AA" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Thumb.Template>
+                                                </Thumb>
+                                            </Track.Thumb>
+                                            <Track.IncreaseRepeatButton>
+                                                <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}" Background="Transparent" BorderThickness="0" IsTabStop="False" />
+                                            </Track.IncreaseRepeatButton>
+                                        </Track>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ScrollViewer.Resources>
                 <StackPanel>
                     <Grid Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
                         <StackPanel>
                             <TextBlock Text="AI 模型设置" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="21" FontWeight="Bold" />
                             <TextBlock Margin="0,8,0,0" Text="选择云端、中转站或本地模型。所有信件仍只在你点击寄出、分析或开启主动来信时发送。" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="13" TextWrapping="Wrap" />
                         </StackPanel>
-                        <Button Width="30" Height="30" HorizontalAlignment="Right" Background="Transparent" BorderBrush="Transparent" Foreground="#FFAEB1B7" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE8BB;" Cursor="Hand" Click="CloseButton_OnClick" />
                     </Grid>
 
                     <TextBlock Margin="0,21,0,0" Text="服务类型" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" />
@@ -48,7 +88,7 @@
                             </Grid.ColumnDefinitions>
                             <ComboBox x:Name="CompatibleModelBox" Style="{StaticResource DarkComboBox}" IsEditable="True" Height="39" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
                             <Button x:Name="RefreshCompatibleModelsButton" Grid.Column="1" Height="39" Margin="9,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="获取列表" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="RefreshCompatibleModelsButton_OnClick">
-                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                             </Button>
                         </Grid>
                         <TextBlock Margin="1,7,0,0" Text="先点“获取列表”选择上游模型；接口不支持列表时也可以手动填写。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
@@ -63,7 +103,7 @@
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="116" /></Grid.ColumnDefinitions>
                             <TextBox x:Name="OllamaModelBox" Height="39" Padding="10,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
                             <Button Grid.Column="1" Height="39" Margin="9,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="管理本地模型" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="OpenLocalModelsButton_OnClick">
-                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                             </Button>
                         </Grid>
                         <TextBlock Margin="1,7,0,0" Text="一键下载、选择并使用本机模型，不需要填写地址。图片人设分析请使用可识图的云端模型。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
@@ -93,6 +133,95 @@
                             <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="分钟" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
+                    <Border Margin="0,0,0,8" Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <Expander x:Name="TtsExpander" Foreground="#FFE7E4E0">
+                                <Expander.Header>
+                                    <CheckBox x:Name="TtsEnabledCheck" Content="信件朗读（本地 IndexTTS-2.5 语音，朗读整封回信）" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                                </Expander.Header>
+                                <StackPanel Margin="0,10,0,0">
+                            <CheckBox x:Name="TtsAutoReadCheck" Content="收到新信后自动朗读（默认关闭）" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="76" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TtsRootBox" Height="30" Padding="9,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" ToolTip="IndexTTS-2.5 引擎目录" />
+                                <Button x:Name="TtsRootBrowseButton" Grid.Column="1" Height="30" Margin="7,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="浏览…" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="TtsRootBrowseButton_OnClick">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                            <TextBlock Margin="1,6,0,0" Text="IndexTTS-2.5 引擎目录；点朗读直接用显卡生成，若显存被占用导致失败会提示，可当场改选 CPU 慢速生成。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="104" /><ColumnDefinition Width="8" /><ColumnDefinition Width="86" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="TtsSetupStatusText" Grid.Column="0" VerticalAlignment="Center" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                                <Button Grid.Column="1" Height="30" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="一键准备" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="TtsSetupButton_OnClick" ToolTip="打开官方部署页并复制安装命令">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                </Button>
+                                <Button Grid.Column="3" Height="30" Background="Transparent" BorderBrush="#FF555861" BorderThickness="1" Foreground="#FFD8D8D8" Content="重新检测" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="TtsDetectButton_OnClick">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                            <TextBlock Margin="1,5,0,0" Text="部署完成后请把目录指向包含 .venv、local_tools、checkpoints 和 reference 的 IndexTTS-2.5 根目录；程序会自动关联。" Foreground="#FF888C94" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                            <Border Margin="0,10,0,0" Padding="10,7" Background="#FF2A2318" BorderBrush="#FF6B542E" BorderThickness="1" CornerRadius="6">
+                                <TextBlock Text="高级设置：如果你不知道你在改什么，就不要乱改。改错后清空对应输入框重新保存即可恢复默认。" Foreground="#FFE0B36A" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
+                            </Border>
+                            <TextBlock Margin="1,8,0,0" Text="参考音色文件（留空使用引擎自带音色）" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="12" FontWeight="SemiBold" />
+                            <Grid Margin="0,6,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="76" />
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TtsReferenceBox" Height="30" Padding="9,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                                <Button x:Name="TtsReferenceBrowseButton" Grid.Column="1" Height="30" Margin="7,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="浏览…" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="TtsReferenceBrowseButton_OnClick">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="8" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="种子" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    <TextBox x:Name="TtsSeedBox" Height="28" Margin="0,4,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="停顿 ms" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    <TextBox x:Name="TtsIntervalBox" Height="28" Margin="0,4,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="语速倍率" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    <TextBox x:Name="TtsDurationBox" Height="28" Margin="0,4,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="6">
+                                    <TextBlock Text="切分长度" Foreground="#FFE1DFDC" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    <TextBox x:Name="TtsTokensBox" Height="28" Margin="0,4,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Margin="1,6,0,0" Text="默认值：种子 20260830、停顿 200、语速 1.0（大于 1 更慢）、切分 120。改动任意参数后，同一封信会重新合成。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </Border>
+                    <Border Margin="0,0,0,8" Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="说话风格学习" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                                <TextBlock Text="寄出信件后自动学习你的说话方式并注入回信；保留条数填 0 = 一直保存全部观察" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBox x:Name="StyleMemoryLimitBox" Grid.Column="1" Height="30" Margin="8,0,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" ToolTip="保留的「用户说话」观察条数；0 = 不限量" />
+                            <Button x:Name="ClearStyleButton" Grid.Column="2" Height="30" Margin="8,0,0,0" Padding="10,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="清除" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="ClearStyleButton_OnClick" ToolTip="删除当前角色已学习的全部说话风格观察">
+                                <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                            </Button>
+                        </Grid>
+                    </Border>
                     <Border Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
                         <Grid>
                             <StackPanel VerticalAlignment="Center">
@@ -107,6 +236,9 @@
                 </StackPanel>
             </ScrollViewer>
             <StackPanel Grid.Row="1" Margin="0,18,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button Width="104" Height="38" Margin="0,0,12,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="导出诊断日志" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="ExportLogButton_OnClick">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
+                </Button>
                 <Button Width="72" Height="38" Background="Transparent" BorderBrush="#FF555861" BorderThickness="1" Foreground="#FFD8D8D8" Content="取消" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="CloseButton_OnClick">
                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                 </Button>

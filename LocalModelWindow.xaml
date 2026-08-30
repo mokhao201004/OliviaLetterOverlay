@@ -41,7 +41,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="InstallDirectoryBox" Height="39" Padding="10,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
                         <Button Grid.Column="1" Height="39" Margin="9,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="浏览…" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="BrowseInstallDirectoryButton_OnClick">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                         </Button>
                     </Grid>
                     <TextBlock Margin="1,6,0,0" Text="留空使用官方默认位置。开始安装时，所选目录会自动填入 Ollama 安装向导。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
@@ -58,7 +58,7 @@
                         </Grid.ColumnDefinitions>
                         <TextBox x:Name="CustomModelBox" Height="39" Padding="10,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
                         <Button x:Name="DownloadCustomButton" Grid.Column="1" Height="39" Margin="9,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="下载模型" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="DownloadCustomButton_OnClick">
-                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="7" /></Style></Button.Resources>
+                            <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                         </Button>
                     </Grid>
                     <TextBlock Margin="1,6,0,0" Text="填写 Ollama 官方库里的模型名，例如 llama3.2:3b、gemma3:12b 或 deepseek-r1:14b。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="12" TextWrapping="Wrap" />
@@ -81,6 +81,9 @@
                 </StackPanel>
             </ScrollViewer>
             <StackPanel Grid.Row="1" Margin="0,17,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+                <Button Width="104" Height="38" Margin="0,0,12,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="导出诊断日志" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="ExportLogButton_OnClick">
+                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
+                </Button>
                 <Button Width="72" Height="38" Background="Transparent" BorderBrush="#FF555861" BorderThickness="1" Foreground="#FFD8D8D8" Content="取消" Cursor="Hand" FontFamily="Microsoft YaHei UI" Click="CloseButton_OnClick">
                     <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                 </Button>

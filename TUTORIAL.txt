@@ -5,13 +5,13 @@ Olivia Letter 信箱使用教程
 【1. 下载并启动】
 
 1. 打开 最新版本发布页：https://github.com/mokhao201004/OliviaLetterOverlay/releases/latest。
-2. 下载 OliviaLetterOverlay-1.0.1-win-x64.zip。
+2. 下载 OliviaLetterOverlay-1.1-win-x64.zip。
 3. 右键压缩包，选择“全部解压缩”，不要直接在压缩包里双击运行。
 4. 打开解压后的文件夹，双击 OliviaLetterOverlay.exe。
 
 推荐使用 64 位 Windows 10/11。发布包自带运行时，通常不需要另外安装 .NET。
 
-如果想校验下载是否完整，可以核对 SHA256SUMS-v1.0.1.txt 里的哈希值。
+如果想校验下载是否完整，可以核对 SHA256SUMS-v1.1.txt 里的哈希值。
 
 【2. 第一次配置 AI】
 
@@ -46,6 +46,13 @@ MiMo 的模型固定为 mimo-v2.5，不需要填写地址。
 6. 点击 使用所选模型，回到设置页后再点 保存设置。
 
 本地模型不需要 API Key，但回信时 Ollama 必须保持运行。
+
+◆ 方案 D：本地 IndexTTS-2.5 朗读
+
+1. 在 AI 模型设置的“信件朗读”区域点击“一键准备”，程序会打开官方部署页并复制命令。
+2. 按官方说明安装 Git LFS、uv 和 IndexTTS-2.5 模型；Windows 显存较小时可跳过 DeepSpeed 额外组件。
+3. 部署完成后回到设置点击“重新检测”，找到完整引擎后勾选启用并保存。
+4. 只有检测到完整引擎时，主界面才显示“朗读”和“重新生成”按钮。
 
 【3. 写信和读回信】
 

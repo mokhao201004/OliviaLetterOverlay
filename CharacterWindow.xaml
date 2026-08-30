@@ -1,0 +1,51 @@
+<Window x:Class="OliviaLetterOverlay.CharacterWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="角色与独立记忆" Width="560" Height="620" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="#FF202228" Foreground="#FFF0EEEB"
+        FontFamily="Microsoft YaHei UI" ShowInTaskbar="False">
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Style.Resources>
+                <Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style>
+            </Style.Resources>
+            <Setter Property="Background" Value="#FF34363D" />
+            <Setter Property="Foreground" Value="#FFF0EEEB" />
+            <Setter Property="BorderBrush" Value="#FF565963" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="8,0" />
+        </Style>
+    </Window.Resources>
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+            <TextBlock Text="角色与独立记忆" FontSize="21" FontWeight="Bold" />
+            <TextBlock Margin="0,8,0,14" Text="每个角色独立保存人设、记忆、参考信件和历史往来。AI 接口配置共用；原有数据保留在“林离”角色中。" Foreground="#FFB9BBC1" TextWrapping="Wrap" />
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="108" /></Grid.ColumnDefinitions>
+            <ComboBox x:Name="CharacterPicker" Height="38" Style="{StaticResource DarkComboBox}" DisplayMemberPath="Name" />
+            <Button Grid.Column="1" Margin="10,0,0,0" Content="切换角色" Click="SwitchButton_OnClick" />
+        </Grid>
+        <TextBlock Grid.Row="2" Margin="0,24,0,10" Text="新建角色" FontSize="16" FontWeight="SemiBold" />
+        <StackPanel Grid.Row="3">
+            <TextBlock Text="角色名" Margin="0,0,0,6" Foreground="#FFB9BBC1" />
+            <TextBox x:Name="CharacterNameBox" Height="36" MaxLength="40" Padding="9,6" Background="#FF17191E" Foreground="#FFF0EEEB" BorderBrush="#FF50535C" />
+        </StackPanel>
+        <TextBlock Grid.Row="4" Margin="0,14,0,6" Text="人设说明（可选，描述身份、性格和说话方式）" Foreground="#FFB9BBC1" />
+        <TextBox x:Name="PersonaBox" Grid.Row="5" Padding="10" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Background="#FF17191E" Foreground="#FFF0EEEB" BorderBrush="#FF50535C" />
+        <Grid Grid.Row="6" Margin="0,14,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="130" /></Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatusText" Margin="0,0,12,0" Foreground="#FFB9BBC1" TextWrapping="Wrap" VerticalAlignment="Center" Text="新角色从空白记忆开始，原角色的数据不会被覆盖。" />
+            <Button Grid.Column="1" Height="38" Content="新建并切换" Click="CreateButton_OnClick" />
+        </Grid>
+    </Grid>
+</Window>

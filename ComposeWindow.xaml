@@ -24,7 +24,7 @@
                 <Button HorizontalAlignment="Right" Width="30" Height="30" Background="Transparent" BorderBrush="Transparent" Content="×" Cursor="Hand" FontFamily="Segoe UI" FontSize="25" Foreground="#FFAEB1B7" Padding="0,-4,0,0" Click="CloseButton_OnClick" />
             </Grid>
 
-            <TextBlock Grid.Row="1" Text="今天有什么想跟林离分享的？" Foreground="#FFB6B8BD" FontFamily="Microsoft YaHei UI" FontSize="15" VerticalAlignment="Center" />
+            <TextBlock x:Name="ComposeHintText" Grid.Row="1" Text="今天有什么想分享的？" TextTrimming="CharacterEllipsis" Foreground="#FFB6B8BD" FontFamily="Microsoft YaHei UI" FontSize="15" VerticalAlignment="Center" />
 
             <Grid Grid.Row="2">
                 <Image x:Name="ComposerPaperImage" Stretch="Fill" />

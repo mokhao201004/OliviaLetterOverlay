@@ -54,6 +54,15 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="ReplyPageButton" TargetType="Button" BasedOn="{StaticResource PillButton}">
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontFamily" Value="Microsoft YaHei UI" />
+            <Setter Property="FontSize" Value="12" />
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="MailboxItem" TargetType="Button">
             <Setter Property="Height" Value="62" />
             <Setter Property="Background" Value="Transparent" />
@@ -98,6 +107,9 @@
                     <Button Style="{StaticResource WindowButton}" Content="&#xE8BB;" Click="CloseButton_OnClick" IsTabStop="False" />
                 </StackPanel>
                 <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,25" Orientation="Horizontal">
+                    <Button x:Name="CharacterButton" MaxWidth="240" Height="38" Padding="12,0" Margin="0,0,14,0" Background="#FF22242A" BorderBrush="#FF4D5058" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" Cursor="Hand" Content="切换角色" Click="CharacterButton_OnClick">
+                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
+                    </Button>
                     <Border Width="87" Height="29" CornerRadius="6" Background="#FF453A2E">
                         <TextBlock Text="测试版" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFF5EEE8" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
                     </Border>
@@ -126,7 +138,7 @@
                         <TextBlock x:Name="MailboxTitleText" Margin="12,3,0,0" Text="我的信箱  3" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="18" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" />
                         <ScrollViewer Margin="0,51,0,100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <ScrollViewer.Resources>
-                                <Style TargetType="ScrollBar">
+                                <Style TargetType="ScrollBar" BasedOn="{StaticResource HiddenScrollBarStyle}">
                                     <Setter Property="Width" Value="6" />
                                     <Setter Property="Margin" Value="0,4,2,4" />
                                     <Setter Property="Background" Value="Transparent" />
@@ -174,7 +186,7 @@
                                         <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
                                     <StackPanel Margin="52,8,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="你好" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
+                                        <TextBlock x:Name="HelloTitleText" Text="你好" TextTrimming="CharacterEllipsis" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
                                         <TextBlock Margin="0,3,0,0" Text="2026-08-26 18:08" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
                                     </StackPanel>
                                 </Grid>
@@ -185,7 +197,7 @@
                                         <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
                                     <StackPanel Margin="52,8,0,0" VerticalAlignment="Center">
-                                        <TextBlock Text="欢迎来到信箱" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
+                                        <TextBlock x:Name="WelcomeTitleText" Text="欢迎来到信箱" TextTrimming="CharacterEllipsis" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
                                         <TextBlock Margin="0,3,0,0" Text="2026-08-26 17:32" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
                                     </StackPanel>
                                 </Grid>
@@ -199,8 +211,8 @@
                                     <TextBlock Text="&#xE724;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#FFDDD8D1" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <StackPanel Margin="59,18,85,0" VerticalAlignment="Top">
-                                    <TextBlock Text="给林离写信" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="16" />
-                                    <TextBlock Margin="0,3,0,0" Text="今天还有 0 封书信" Foreground="#FF9C9FA6" FontFamily="Microsoft YaHei UI" FontSize="12" />
+                                    <TextBlock x:Name="ComposeTitleText" Text="给林离写信" TextTrimming="CharacterEllipsis" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="16" />
+                                    <TextBlock Margin="0,3,0,0" Text="今天还有 67 封书信" Foreground="#FF9C9FA6" FontFamily="Microsoft YaHei UI" FontSize="12" />
                                 </StackPanel>
                                 <Button Width="68" Height="42" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FFE9E0D6" BorderBrush="#FFE9E0D6" BorderThickness="0" Content="写信" Foreground="#FF2B2927" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="15" Cursor="Hand" Click="ComposeButton_OnClick">
                                     <Button.Resources>
@@ -220,11 +232,39 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
                         <Grid Grid.Row="0" Margin="23,0,24,0">
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="SubjectText" Text="你好" Foreground="#FFF1EFED" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="18" />
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                                <Button x:Name="LetterTitleButton" Style="{StaticResource MailboxItem}" Height="30" ToolTip="重命名这条聊天记录" AutomationProperties.Name="重命名聊天记录" Click="LetterTitleButton_OnClick">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Margin="10,0,4,0" Text="&#xE70F;" Foreground="#FF9C9FA6" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="SubjectText" Text="你好" TextTrimming="CharacterEllipsis" Foreground="#FFF1EFED" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="18" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </Button>
+                                <Grid x:Name="LetterTitleEditor" Height="30" Visibility="Collapsed">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="52" /><ColumnDefinition Width="52" /></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="LetterTitleBox" MaxLength="40" Padding="8,0" Background="#FF15171B" BorderBrush="#FF50535C" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="14" VerticalContentAlignment="Center" ToolTip="1–40 字；Enter 保存，Esc 取消" AutomationProperties.Name="聊天记录名称" />
+                                    <Button x:Name="SaveLetterTitleButton" Grid.Column="1" Margin="6,0,0,0" Background="#FFE8DED4" BorderBrush="#FFE8DED4" BorderThickness="0" Foreground="#FF272526" FontFamily="Microsoft YaHei UI" Content="保存" Cursor="Hand" Click="SaveLetterTitleButton_OnClick">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                    </Button>
+                                    <Button x:Name="CancelLetterTitleButton" Grid.Column="2" Margin="6,0,0,0" Background="Transparent" BorderBrush="#FF555861" BorderThickness="1" Foreground="#FFD8D8D8" FontFamily="Microsoft YaHei UI" Content="取消" Cursor="Hand" Click="CancelLetterTitleButton_OnClick">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
                                 <TextBlock x:Name="DateText" Margin="0,8,0,0" Text="2026-08-26 18:08" Foreground="#FFB7B9BE" FontFamily="Microsoft YaHei UI" FontSize="13" />
                             </StackPanel>
-                            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                                <Button x:Name="ReadAloudButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="ReadAloudButton_OnClick" ToolTip="用 Olivia 的声音朗读这封回信">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="ReadAloudButtonIcon" Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="ReadAloudButtonLabel" Margin="5,0,0,0" Text="朗读" FontFamily="Microsoft YaHei UI" FontSize="13" />
+                                    </StackPanel>
+                                </Button>
+                                <Button x:Name="RegenerateAudioButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="RegenerateAudioButton_OnClick" ToolTip="不满意这版语音？换一个随机种子重新合成">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="RegenerateAudioButtonLabel" Margin="5,0,0,0" Text="重新生成" FontFamily="Microsoft YaHei UI" FontSize="13" />
+                                    </StackPanel>
+                                </Button>
                                 <Button x:Name="DownloadButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="DownloadButton_OnClick">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
@@ -240,9 +280,19 @@
                             </StackPanel>
                         </Grid>
                         <Border Grid.Row="1" Background="#FF292B30" />
-                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+                        <ScrollViewer x:Name="LetterScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
                             <StackPanel Width="554" HorizontalAlignment="Center" Margin="0,20,0,0">
-                                <Image x:Name="ReplyImage" Width="554" Height="310" Stretch="Fill" SnapsToDevicePixels="True" />
+                                <!-- 三层分离：纸面（含边框）固定不动，文字层独立滚动；右下角半透明按钮进入全屏看信 -->
+                                <Grid x:Name="ReplyPaperStack" Height="310" ClipToBounds="True">
+                                    <Image x:Name="PaperBackground" Stretch="Fill" />
+                                    <ScrollViewer x:Name="ReplyScroll" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled" PanningMode="VerticalOnly" Focusable="False" Background="Transparent" Margin="30,28,30,23">
+                                        <TextBlock x:Name="ReplyTextBlock" TextWrapping="Wrap" Text="" LineHeight="28" Foreground="#FF1E1A16" />
+                                    </ScrollViewer>
+                                    <TextBlock x:Name="LetterDateText" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,10" Text="" Foreground="#FF46413A" />
+                                    <Button x:Name="FullLetterButton" Width="34" Height="34" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,8,8" Opacity="0.6" Background="#CC202228" BorderBrush="#FF4D5058" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Segoe MDL2 Assets" FontSize="14" Content="&#xE740;" Cursor="Hand" Click="FullLetterButton_OnClick" ToolTip="全屏预览（滚轮上下翻，Esc 退出）">
+                                        <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="17" /></Style></Button.Resources>
+                                    </Button>
+                                </Grid>
                                 <Image x:Name="SentImage" Width="554" Height="310" Margin="0,9,0,0" Stretch="Fill" SnapsToDevicePixels="True" />
                             </StackPanel>
                         </ScrollViewer>
@@ -252,7 +302,3 @@
         </Grid>
     </Border>
 </Window>
-
-
-
-

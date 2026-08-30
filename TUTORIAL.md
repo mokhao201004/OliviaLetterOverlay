@@ -5,13 +5,13 @@
 ## 1. 下载并启动
 
 1. 打开 [最新版本发布页](https://github.com/mokhao201004/OliviaLetterOverlay/releases/latest)。
-2. 下载 `OliviaLetterOverlay-1.0.1-win-x64.zip`。
+2. 下载 `OliviaLetterOverlay-1.1-win-x64.zip`。
 3. 右键压缩包，选择“全部解压缩”，不要直接在压缩包里双击运行。
 4. 打开解压后的文件夹，双击 `OliviaLetterOverlay.exe`。
 
 推荐使用 64 位 Windows 10/11。发布包自带运行时，通常不需要另外安装 .NET。
 
-如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.0.1.txt` 里的哈希值。
+如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.1.txt` 里的哈希值。
 
 ## 2. 第一次配置 AI
 
@@ -47,6 +47,13 @@ MiMo 的模型固定为 `mimo-v2.5`，不需要填写地址。
 
 本地模型不需要 API Key，但回信时 Ollama 必须保持运行。
 
+### 方案 D：本地 IndexTTS-2.5 朗读
+
+1. 在 AI 模型设置的“信件朗读”区域点击 **一键准备**，程序会打开 [IndexTTS 官方仓库](https://github.com/index-tts/index-tts) 并复制部署命令。
+2. 按官方说明安装 Git LFS、uv，克隆仓库后运行 `uv sync --all-extras`，再执行 `hf download IndexTeam/IndexTTS-2.5 --local-dir=checkpoints`。
+3. 部署完成后点击 **重新检测**，找到完整引擎后勾选启用并保存。
+4. 只有检测到完整引擎时，主界面才会显示 **朗读** 和 **重新生成** 按钮。
+
 ## 3. 写信和读回信
 
 1. 在主界面底部点击 **写信**。
@@ -55,6 +62,8 @@ MiMo 的模型固定为 `mimo-v2.5`，不需要填写地址。
 4. 等待 AI 回复。成功后左侧会出现这一组往来，右侧会同时显示：
    - 上面一张：林离的回信；
    - 下面一张：你寄出的信。
+
+长回信仍保持原始信纸大小，照片、边框和日期固定不动，滚轮只滚动信纸里的文字；点击回信右下角的全屏按钮可进入真正的全屏看信，按 Esc 退出。
 
 如果发送失败，状态栏会提示原因。草稿和已成功保存的信件不会因为一次请求失败而丢失。
 

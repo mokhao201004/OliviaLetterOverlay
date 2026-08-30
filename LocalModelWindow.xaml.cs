@@ -123,6 +123,8 @@ public partial class LocalModelWindow : Window
         DownloadOllamaAsync();
     }
 
+    private async void ExportLogButton_OnClick(object sender, RoutedEventArgs e) => await DiagnosticLogExport.ShowAsync(this);
+
     private void StartInstaller(string installerPath)
     {
         var installDirectory = NormalizeInstallDirectory();

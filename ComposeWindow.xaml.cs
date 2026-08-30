@@ -6,13 +6,16 @@ namespace OliviaLetterOverlay;
 public partial class ComposeWindow : Window
 {
     private readonly IReadOnlyList<SavedLetter> _history;
+    private readonly string _characterId;
 
     public event EventHandler<LetterCreatedEventArgs>? LetterCreated;
 
-    public ComposeWindow(IReadOnlyList<SavedLetter> history)
+    public ComposeWindow(IReadOnlyList<SavedLetter> history, string characterId)
     {
         _history = history;
+        _characterId = characterId;
         InitializeComponent();
+        ComposeHintText.Text = $"今天有什么想跟{CharacterStore.Get(_characterId).Name}分享的？";
         ComposerPaperImage.Source = ComposerPaperRenderer.Render(new Size(830, 478));
     }
 
@@ -48,8 +51,8 @@ public partial class ComposeWindow : Window
             SendButton.Content = "等待回信";
             StatusText.Text = "正在生成回信…";
             StatusText.Visibility = Visibility.Visible;
-            var reply = await MimoClient.GenerateReplyAsync(draft, _history);
-            LetterCreated?.Invoke(this, new LetterCreatedEventArgs(draft, reply));
+            var reply = await MimoClient.GenerateReplyAsync(draft, _history, _characterId);
+            LetterCreated?.Invoke(this, new LetterCreatedEventArgs(draft, reply, _characterId));
             Close();
         }
         catch (Exception exception)
@@ -81,8 +84,9 @@ public partial class ComposeWindow : Window
     }
 }
 
-public sealed class LetterCreatedEventArgs(string draft, string reply) : EventArgs
+public sealed class LetterCreatedEventArgs(string draft, string reply, string characterId) : EventArgs
 {
+    public string CharacterId { get; } = characterId;
     public string Draft { get; } = draft;
     public string Reply { get; } = reply;
 }

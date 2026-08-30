@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <StartupObject>OliviaLetterOverlay.RegressionTests</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\*.cs" Exclude="..\..\AssemblyInfo.cs" Link="Source\%(Filename)%(Extension)" />
+    <ApplicationDefinition Include="..\..\App.xaml" Link="App.xaml" />
+    <Page Include="..\..\*Window.xaml" Link="%(Filename)%(Extension)" />
+    <Resource Include="..\..\Assets\*.png" Link="Assets\%(Filename)%(Extension)" />
+    <None Include="..\..\Assets\Fonts\*.ttf" Link="Assets\Fonts\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
