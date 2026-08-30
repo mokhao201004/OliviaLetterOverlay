@@ -10,6 +10,10 @@ internal static class MimoClient
 {
     private const string ApiUrl = "https://api.xiaomimimo.com/v1/chat/completions";
     private const int ReplyTokenBudget = 4096;
+    private const int MemoryAnalysisLimit = 30;
+    private const int PersonaAnalysisMemoryLimit = 20;
+    private const int InjectedMemoryLimit = 24;
+    private const int InjectedStyleMemoryLimit = 6;
     private static readonly HttpClient Client = new()
     {
         Timeout = TimeSpan.FromMinutes(5),
@@ -223,7 +227,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = "你是对话记忆编辑。只从成对往来中提炼明确、可在未来自然使用的事实、偏好、持续话题或约定，以及用户说话方式的观察（以「用户说话：」开头，一句一条：句长、用词、语气、标点或口头禅）。不要猜测身份经历，不要写一次性问候，不要虚构。只输出合法 JSON，不要 Markdown：{\"memories\":[\"一条简短、明确的记忆\"]}。最多 10 条。",
+                content = "你是对话记忆编辑。只从成对往来中提炼明确、可在未来自然使用的事实、偏好、持续话题或约定，以及用户说话方式的观察（以「用户说话：」开头，一句一条：句长、用词、语气、标点或口头禅）。不要猜测身份经历，不要写一次性问候，不要虚构。只输出合法 JSON，不要 Markdown：{\"memories\":[\"一条简短、明确的记忆\"]}。最多 " + MemoryAnalysisLimit + " 条。",
             },
             new { role = "user", content = sourceText },
         }, 700);
@@ -262,7 +266,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = "你是一位只分析中文书信表达风格与可复用记忆的编辑。基于给出的成对往来，输出可直接用于后续回信的人设规则，以及由文本明确支持的记忆。只输出合法 JSON，不要 Markdown：{\"persona\":\"中文人设规则：核心气质、回应问题顺序、句式用词、避免表达和不超过90字写作指令\",\"memories\":[\"一条由来信或回信明确提到、可在未来对话中自然引用的简短事实或未完话题\"]}。记忆最多 8 条；不确定、一次性寒暄、猜测到的身份经历都不要写。不要重复原信。",
+                content = "你是一位只分析中文书信表达风格与可复用记忆的编辑。基于给出的成对往来，输出可直接用于后续回信的人设规则，以及由文本明确支持的记忆。只输出合法 JSON，不要 Markdown：{\"persona\":\"中文人设规则：核心气质、回应问题顺序、句式用词、避免表达和不超过90字写作指令\",\"memories\":[\"一条由来信或回信明确提到、可在未来对话中自然引用的简短事实或未完话题\"]}。记忆最多 " + PersonaAnalysisMemoryLimit + " 条；不确定、一次性寒暄、猜测到的身份经历都不要写。不要重复原信。",
             },
             new { role = "user", content = sourceText },
         }, 800);
@@ -431,7 +435,7 @@ internal static class MimoClient
                 .Where(memory => !string.IsNullOrWhiteSpace(memory))
                 .Select(memory => memory!)
                 .Distinct(StringComparer.Ordinal)
-                .Take(10)
+                .Take(MemoryAnalysisLimit)
                 .ToList();
         }
         catch (JsonException)
@@ -503,11 +507,11 @@ internal static class MimoClient
         }
         var allMemories = profile.Memories?.Where(memory => !string.IsNullOrWhiteSpace(memory)).ToList() ?? [];
         // 最近几条「用户说话」观察单独保留席位，避免被普通记忆挤出注入窗口。
-        var styleMemories = allMemories.Where(memory => memory.StartsWith("用户说话：", StringComparison.Ordinal)).Take(3).ToList();
+        var styleMemories = allMemories.Where(memory => memory.StartsWith("用户说话：", StringComparison.Ordinal)).Take(InjectedStyleMemoryLimit).ToList();
         var styleSet = new HashSet<string>(styleMemories, StringComparer.Ordinal);
         var memories = allMemories
             .Where(memory => !styleSet.Contains(memory))
-            .Take(Math.Max(0, 8 - styleMemories.Count))
+            .Take(Math.Max(0, InjectedMemoryLimit - styleMemories.Count))
             .Concat(styleMemories)
             .ToList();
         if (memories.Count > 0)

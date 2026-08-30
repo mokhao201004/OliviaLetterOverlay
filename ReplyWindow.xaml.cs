@@ -121,35 +121,10 @@ internal static class ReplyLetterRenderer
         return pages;
     }
 
-    private const string LetterFontFileName = "ChillZhuo.ttf";
-    private static string? _resolvedFamilyName;
-
-    // 「寒蝉手拙体」由作者免费授权全社会使用（包括商用），分发时保留作者标注；缺失时退回系统楷体。
-    // 家族名从字体文件自动读取：换字体只需替换 Assets\Fonts 里的 ttf 并改上面的文件名，不用再对家族名。
     internal static Typeface CreateLetterTypeface(FontWeight weight)
     {
-        var fontPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", LetterFontFileName);
-        var family = File.Exists(fontPath) ? new FontFamily(fontPath + "#" + ResolveFamilyName(fontPath)) : new FontFamily("KaiTi");
-        return new Typeface(family, FontStyles.Normal, weight, FontStretches.Normal);
-    }
-
-    private static string ResolveFamilyName(string fontPath)
-    {
-        _resolvedFamilyName ??= TryReadFamilyName(fontPath) ?? "KaiTi";
-        return _resolvedFamilyName;
-    }
-
-    private static string? TryReadFamilyName(string fontPath)
-    {
-        try
-        {
-            var glyph = new GlyphTypeface(new Uri(fontPath));
-            return glyph.FamilyNames.Values.FirstOrDefault();
-        }
-        catch (Exception exception) when (exception is IOException or UriFormatException or NotSupportedException)
-        {
-            return null;
-        }
+        // 与写信框保持相同的系统楷体，收信和寄信看起来是一套字。
+        return new Typeface(new FontFamily("KaiTi"), FontStyles.Normal, weight, FontStretches.Normal);
     }
 
     internal static FormattedText FormatReply(string reply, double width) =>

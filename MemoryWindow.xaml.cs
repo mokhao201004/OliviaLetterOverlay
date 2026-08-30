@@ -5,6 +5,7 @@ namespace OliviaLetterOverlay;
 
 public partial class MemoryWindow : Window
 {
+    private const int MemoryLimit = 100;
     private readonly string _characterId = CharacterStore.Current.Id;
 
     public MemoryWindow()
@@ -14,7 +15,7 @@ public partial class MemoryWindow : Window
         var profile = PersonaStore.Load(_characterId);
         var memories = profile?.Memories ?? [];
         MemoryBox.Text = string.Join(Environment.NewLine, memories);
-        StatusText.Text = memories.Count == 0 ? "还没有保存的记忆。" : $"当前有 {memories.Count} 条记忆。";
+        StatusText.Text = memories.Count == 0 ? "还没有保存的记忆。最多可保存 100 条。" : $"当前有 {memories.Count} / {MemoryLimit} 条记忆。";
     }
 
     private void SaveButton_OnClick(object sender, RoutedEventArgs e)
@@ -25,7 +26,7 @@ public partial class MemoryWindow : Window
             .Select(memory => memory.Trim())
             .Where(memory => memory.Length > 0)
             .Distinct(StringComparer.Ordinal)
-            .Take(20)
+            .Take(MemoryLimit)
             .ToList();
 
         try
@@ -34,7 +35,7 @@ public partial class MemoryWindow : Window
             profile.UpdatedAt = DateTime.Now;
             profile.Memories = memories;
             PersonaStore.Save(profile, _characterId);
-            StatusText.Text = $"已保存 {memories.Count} 条记忆。";
+            StatusText.Text = $"已保存 {memories.Count} / {MemoryLimit} 条记忆。";
         }
         catch (System.IO.IOException)
         {
@@ -64,8 +65,8 @@ public partial class MemoryWindow : Window
                 }
             }
 
-            MemoryBox.Text = string.Join(Environment.NewLine, currentMemories.Take(20));
-            StatusText.Text = $"已提炼 {analyzedMemories.Count} 条，已写入编辑区；点击“保存记忆”后生效。";
+            MemoryBox.Text = string.Join(Environment.NewLine, currentMemories.Take(MemoryLimit));
+            StatusText.Text = $"已提炼 {analyzedMemories.Count} 条，已写入编辑区；最多保存 {MemoryLimit} 条，点击“保存记忆”后生效。";
         }
         catch (Exception exception)
         {
