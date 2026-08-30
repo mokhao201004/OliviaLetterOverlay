@@ -1,0 +1,114 @@
+Olivia Letter 信箱 1.1：先看这里
+================================
+
+最重要的一句：
+大多数人只需要双击压缩包根目录的 OliviaLetterOverlay.exe。
+其他 .cmd / .ps1 都不是日常聊天必须运行的东西，不要全部点一遍。
+
+
+一、平时正常使用
+----------------
+
+1. 先把压缩包“全部解压缩”到一个固定文件夹。
+2. 双击根目录的 OliviaLetterOverlay.exe。
+3. 在软件右上角设置里配置 AI 服务后即可使用。
+
+这不会修改游戏文件，也不会自动开机启动。
+
+
+二、想让信箱在游戏出现时自动弹出（推荐）
+----------------------------------------------
+
+这是最省事的做法，只需设置一次。
+
+前提：先完全退出游戏和信箱程序。
+
+1. 打开解压后的 installer 文件夹。
+2. 双击 Install.cmd。
+3. 出现 PowerShell 窗口时等待它完成，不要中途关闭。
+4. 安装完成后，程序会做三件事：
+   - 把最新版信箱安装到当前 Windows 用户目录；
+   - 创建“开机伴随启动”快捷方式；
+   - 如果它能找到默认 Steam 游戏目录，会安装游戏启动器包装。
+5. 之后正常从 Steam 或原来的游戏入口启动游戏即可。
+
+效果：信箱会以等待模式在后台运行；检测到 Olivia 游戏窗口后自动显示。
+游戏关闭后，信箱会隐藏并继续等待下一次游戏。
+
+如果不想重启电脑，Install.cmd 完成后已经会启动一次等待模式。
+
+
+三、只想这一次伴随游戏，不想安装
+------------------------------------
+
+双击压缩包根目录的 StartOliviaLetterWatch.cmd。
+
+它会启动“等待游戏窗口”的信箱模式。
+保持它运行，再正常启动游戏；检测到游戏窗口后信箱会显示。
+下次重启电脑或关闭信箱后，需要再双击一次这个脚本。
+
+
+四、installer 文件夹里的脚本分别是做什么的
+------------------------------------------------
+
+Install.cmd
+  给普通用户用的一键安装入口。
+  它会调用 Install.ps1，把最新版程序安装到：
+  %LOCALAPPDATA%\Programs\OliviaLetterOverlay
+  并创建开始菜单和开机伴随启动快捷方式。
+  想启用“每次游戏出现时信箱自动出现”，只需要运行它一次。
+
+Install.ps1
+  Install.cmd 实际调用的安装逻辑。
+  普通用户直接双击 Install.cmd 即可，不需要单独运行这个文件。
+
+Uninstall.cmd
+  卸载安装后的程序和快捷方式。
+  默认不会删除信件、记忆、角色和 API 设置。
+
+Uninstall.ps1
+  Uninstall.cmd 实际调用的卸载逻辑。
+  普通用户不需要单独运行。
+
+Start-OliviaMail.cmd
+  手动启动“已经安装到 Windows 用户目录”的信箱，并进入等待游戏模式。
+  通常 Install.cmd 已经帮你创建好开机自动等待，不需要手动运行。
+
+Stop-OliviaMail.cmd
+  立即关闭当前正在运行的信箱。
+  只在你想停止后台等待时使用。
+
+install-launcher-wrapper.ps1
+  高级可选功能。
+  它会把游戏目录中的 launcher.exe 备份为 launcher.origin.exe，
+  再放入一个很小的包装器。以后正常启动游戏时，包装器会先拉起信箱，
+  再原样启动游戏原来的 launcher.origin.exe。
+
+  Install.cmd 会在默认 Steam 游戏目录自动尝试安装它。
+  如果你的游戏装在别的地方，不建议随便双击这个脚本；需要先确认游戏根目录。
+  安装或还原前必须完全退出游戏。
+
+restore-launcher-wrapper.ps1
+  只用于撤销上面的“启动器包装”。
+  它会删除包装器，并把 launcher.origin.exe 恢复为 launcher.exe。
+  不会删除信箱、信件、记忆或 API 设置。
+
+
+五、常见情况
+--------------
+
+“我只想聊天，不想和游戏绑定。”
+  直接运行根目录 OliviaLetterOverlay.exe，不要运行 installer 里的脚本。
+
+“我运行了 Install.cmd，游戏启动后还是没弹出。”
+  先确认游戏已经完全进入窗口；再从开始菜单启动 OliviaLetterOverlay，
+  它会进入等待模式。也可以双击根目录 StartOliviaLetterWatch.cmd 再启动游戏。
+
+“我不想再让它跟游戏一起出现。”
+  运行 installer\Stop-OliviaMail.cmd 可以停止当前等待。
+  如果还想撤销游戏启动器包装，关闭游戏后运行 restore-launcher-wrapper.ps1。
+
+“我想卸载，但不想丢聊天记录。”
+  运行 installer\Uninstall.cmd 即可。你的数据默认仍在：
+  %LOCALAPPDATA%\OliviaLetterOverlay
+

@@ -4,12 +4,14 @@
 
 ## 1. 下载并启动
 
-1. 打开 [最新版本发布页](https://github.com/mokhao201004/OliviaLetterOverlay/releases/latest)。
+1. 打开 [最新版本发布页](https://github.com/sron0404/OliviaLetterOverlay/releases/latest)。
 2. 下载 `OliviaLetterOverlay-1.1-win-x64.zip`。
 3. 右键压缩包，选择“全部解压缩”，不要直接在压缩包里双击运行。
 4. 打开解压后的文件夹，双击 `OliviaLetterOverlay.exe`。
 
 推荐使用 64 位 Windows 10/11。发布包自带运行时，通常不需要另外安装 .NET。
+
+平时只需要双击根目录的 `OliviaLetterOverlay.exe`，不需要运行任何脚本。想让信箱在游戏出现时自动弹出，按压缩包根目录的 [`脚本说明.txt`](脚本说明.txt) 操作。
 
 如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.1.txt` 里的哈希值。
 
@@ -107,13 +109,13 @@ MiMo 的模型固定为 `mimo-v2.5`，不需要填写地址。
 
 ## 8. 和游戏一起启动
 
-发布包里有 `StartOliviaLetterWatch.cmd`，它会以伴随模式启动信箱：
+最简单的方式是完全退出游戏后，打开 `installer` 文件夹并双击 `Install.cmd`。它会把最新版程序安装到当前 Windows 用户目录、创建开机伴随启动快捷方式，并在能找到默认 Steam 游戏目录时自动安装启动器包装。
 
-1. 右键 `StartOliviaLetterWatch.cmd`，选择“创建快捷方式”。
-2. 按 `Win + R`，输入 `shell:startup`，回车。
-3. 把快捷方式移动到打开的启动文件夹。
+之后正常从 Steam 或原来的游戏入口启动游戏；信箱会先在后台等待，检测到 Olivia 游戏窗口后自动显示。游戏关闭后会隐藏并继续等待。
 
-之后开机时程序会静默等待；检测到 Olivia 游戏主窗口后，信箱才会显示出来。
+如果只想这一次伴随游戏、不想安装，双击压缩包根目录的 `StartOliviaLetterWatch.cmd`，保持它运行后再启动游戏即可。
+
+每个脚本的用途、如何停止伴随、如何还原游戏启动器，见 [`脚本说明.txt`](脚本说明.txt)。
 
 ## 9. 备份、移动和删除数据
 

@@ -4,7 +4,7 @@
 
 > 本项目使用来自 [1Dreamer666/olivia-lin](https://github.com/1Dreamer666/olivia-lin) 的人设素材；该项目采用 AGPL-3.0 许可，因此本项目也按 AGPL-3.0 发布，详见 `THIRD_PARTY_NOTICES.md`。
 
-完整流程、模型配置、人设分析、记忆、主动来信和常见问题见 [使用教程](TUTORIAL.md)；纯文本版见 [TUTORIAL.txt](TUTORIAL.txt)。
+完整流程、模型配置、人设分析、记忆、主动来信和常见问题见 [使用教程](TUTORIAL.md)；纯文本版见 [TUTORIAL.txt](TUTORIAL.txt)。不知道各个 `.cmd` 和 `.ps1` 是干什么的，先看 [脚本说明](脚本说明.txt)。
 
 ## 功能
 
@@ -23,9 +23,11 @@
 
 1. 从 Releases 下载 `OliviaLetterOverlay-1.1-win-x64.zip`。
 2. 解压到任意目录。
-3. 双击 `OliviaLetterOverlay.exe`。
+3. 双击压缩包根目录的 `OliviaLetterOverlay.exe`。
 
 推荐 64 位 Windows 10/11。发布包为 self-contained，通常无需额外安装 .NET 运行时。
+
+日常使用不需要运行任何脚本。想让信箱随游戏自动出现，再按 [脚本说明](脚本说明.txt) 的“二、想让信箱在游戏出现时自动弹出”操作。
 
 ## AI 配置
 
