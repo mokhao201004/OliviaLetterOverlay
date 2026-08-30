@@ -8,6 +8,12 @@ public sealed class AutoLetterSettings
     public int IntervalMinutes { get; set; }
 
     public DateTime? LastSentAt { get; set; }
+
+    public bool AiInitiatedEnabled { get; set; }
+
+    public int AiInitiatedMinimumIntervalMinutes { get; set; } = 180;
+
+    public DateTime? LastAiInitiatedDecisionAt { get; set; }
 }
 
 internal static class AutoLetterStore

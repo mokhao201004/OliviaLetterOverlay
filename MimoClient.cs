@@ -34,7 +34,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = BuildReplySystemPrompt(characterId),
+                content = BuildReplySystemPrompt(characterId) + "\n\n" + ConversationTimeContext.BuildPromptContext(history, DateTime.Now),
             },
         };
 
@@ -125,7 +125,8 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = BuildReplySystemPrompt(characterId) + BuildDiversityBlock(isProactive: true) + "\n\n现在请主动写一封来信。这封信没有需要回应的来信，也不必回答任何问题：选一个具体的小主题，按逻辑从头到尾把它说清楚、写连贯就好，可以只围绕这一件事展开。不要假装刚收到用户的新信，也不要编造没有记录的事件；优先从记忆或最近往来中选择一个自然相关的小切口。若没有相关记忆，就写一封克制、具体的近况问候。",
+                content = BuildReplySystemPrompt(characterId) + "\n\n" + ConversationTimeContext.BuildPromptContext(history, DateTime.Now)
+                    + BuildDiversityBlock(isProactive: true) + "\n\n现在请主动写一封来信。这封信没有需要回应的来信，也不必回答任何问题：选一个具体的小主题，按逻辑从头到尾把它说清楚、写连贯就好，可以只围绕这一件事展开。不要假装刚收到用户的新信，也不要编造没有记录的事件；优先从记忆或最近往来中选择一个自然相关的小切口。若没有相关记忆，就写一封克制、具体的近况问候。",
             },
         };
 
@@ -142,6 +143,58 @@ internal static class MimoClient
         var reply = await RequestCompletionAsync(messages, ReplyTokenBudget);
         reply = await RepairIfNeededAsync(messages, reply, CharacterStore.Get(characterId).Name, requireEmotion: false);
         return NormalizeReply(reply ?? string.Empty, characterId);
+    }
+
+    public static async Task<bool> ShouldSendAiInitiatedLetterAsync(IReadOnlyList<SavedLetter> history, DateTime now, string? characterId = null)
+    {
+        characterId ??= CharacterStore.Current.Id;
+        if (!IsConfigured)
+        {
+            throw new InvalidOperationException(AiProviderStore.MissingConfigurationMessage());
+        }
+
+        var messages = new List<object>
+        {
+            new
+            {
+                role = "system",
+                content = BuildReplySystemPrompt(characterId) + "\n\n" + ConversationTimeContext.BuildPromptContext(history, now)
+                    + "\n\n你现在只负责决定要不要主动寄一封信。只有在确实自然、有话想说，而且距离用户上次写信已有一段时间时才发；不要因为刚聊过、只是想刷存在感，或没有具体内容就发。只输出合法 JSON，不要解释：{\"send\":true} 或 {\"send\":false}。",
+            },
+        };
+
+        foreach (var previous in history
+                     .OrderByDescending(item => item.CreatedAt)
+                     .Take(3)
+                     .OrderBy(item => item.CreatedAt))
+        {
+            messages.Add(new { role = "user", content = previous.Draft });
+            messages.Add(new { role = "assistant", content = previous.Reply });
+        }
+
+        messages.Add(new { role = "user", content = "现在是否应该主动寄信？" });
+        var decision = await RequestCompletionAsync(messages, 96);
+        var shouldSend = TryParseAiInitiatedDecision(decision);
+        DiagnosticLog.Write("ai.initiative", "decision=" + (shouldSend ? "send" : "skip"));
+        return shouldSend;
+    }
+
+    internal static bool TryParseAiInitiatedDecision(string? decision)
+    {
+        if (string.IsNullOrWhiteSpace(decision)) return false;
+        var firstBrace = decision.IndexOf('{');
+        var lastBrace = decision.LastIndexOf('}');
+        if (firstBrace < 0 || lastBrace <= firstBrace) return false;
+
+        try
+        {
+            using var document = JsonDocument.Parse(decision[firstBrace..(lastBrace + 1)]);
+            return document.RootElement.TryGetProperty("send", out var send) && send.ValueKind == JsonValueKind.True;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     // 生成后做一次硬校验；命中问题时附带具体违规清单重写一次，

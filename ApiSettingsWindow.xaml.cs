@@ -47,7 +47,10 @@ public partial class ApiSettingsWindow : Window
         CompatibleModelBox.Text = _settings.Provider == AiProviderKind.OpenAiCompatible ? _settings.Model : string.Empty;
         CompatibleModelBox.ItemsSource = null;
         OllamaModelBox.Text = _settings.Provider == AiProviderKind.Ollama ? _settings.Model : "qwen3:4b";
-        AutoLetterMinutesBox.Text = AutoLetterStore.Load(_characterId).IntervalMinutes.ToString();
+        var autoLetterSettings = AutoLetterStore.Load(_characterId);
+        AutoLetterMinutesBox.Text = autoLetterSettings.IntervalMinutes.ToString();
+        AiInitiatedEnabledCheck.IsChecked = autoLetterSettings.AiInitiatedEnabled;
+        AiInitiatedMinimumMinutesBox.Text = autoLetterSettings.AiInitiatedMinimumIntervalMinutes.ToString();
         var ttsPreferences = TtsPreferencesStore.Load();
         TtsEnabledCheck.IsChecked = ttsPreferences.Enabled;
         TtsAutoReadCheck.IsChecked = ttsPreferences.AutoReadNewLetters;
@@ -273,7 +276,16 @@ public partial class ApiSettingsWindow : Window
     {
         if (!int.TryParse(AutoLetterMinutesBox.Text.Trim(), out var intervalMinutes) || intervalMinutes < 0 || (intervalMinutes > 0 && intervalMinutes < 10))
         {
-            StatusText.Text = "主动来信填 0 关闭，启用时最低为 10 分钟。";
+            StatusText.Text = "定时来信填 0 关闭，启用时最低为 10 分钟。";
+            return;
+        }
+
+        var aiInitiatedMinimumMinutes = 180;
+        if (AiInitiatedEnabledCheck.IsChecked == true
+            && (!int.TryParse(AiInitiatedMinimumMinutesBox.Text.Trim(), out aiInitiatedMinimumMinutes)
+                || aiInitiatedMinimumMinutes < 0))
+        {
+            StatusText.Text = "AI 自主来信的最少间隔需为非负整数，填 0 表示不限制。";
             return;
         }
 
@@ -387,6 +399,8 @@ public partial class ApiSettingsWindow : Window
 
         var autoLetterSettings = AutoLetterStore.Load(_characterId);
         autoLetterSettings.IntervalMinutes = intervalMinutes;
+        autoLetterSettings.AiInitiatedEnabled = AiInitiatedEnabledCheck.IsChecked == true;
+        autoLetterSettings.AiInitiatedMinimumIntervalMinutes = aiInitiatedMinimumMinutes;
         AutoLetterStore.Save(autoLetterSettings, _characterId);
 
         DialogResult = true;

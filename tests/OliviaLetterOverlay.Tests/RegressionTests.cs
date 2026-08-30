@@ -52,6 +52,13 @@ internal static class RegressionTests
                 return 0;
             }
 
+            if (args.Contains("--verify-time-awareness"))
+            {
+                TestTimeAwareness();
+                TestAiInitiativeDecisionAsync().GetAwaiter().GetResult();
+                return 0;
+            }
+
             if (args.Contains("--verify-reader-typography"))
             {
                 TestReaderTypography();
@@ -217,6 +224,35 @@ internal static class RegressionTests
         var request = await server.Request;
         Check(!request.Contains("这一封的写法参考") && !request.Contains("可选素材"),
             "direct replies do not inject random writing examples or life seeds");
+        Check(request.Contains("当前本地时间"), "direct replies receive current local time context");
+    }
+
+    private static void TestTimeAwareness()
+    {
+        var now = new DateTime(2026, 8, 31, 15, 0, 0, DateTimeKind.Local);
+        var lastUserAt = now.AddHours(-49);
+        var history = new List<SavedLetter>
+        {
+            new() { CreatedAt = lastUserAt, Draft = "前天写的信", Reply = "回信" },
+            new() { CreatedAt = now.AddHours(-1), Draft = "林离主动寄来的一封信", Reply = "主动信", IsAutoLetter = true },
+        };
+        var context = ConversationTimeContext.BuildPromptContext(history, now);
+        Check(context.Contains("当前本地时间") && context.Contains("2天1小时"), "time context reports date and user silence duration");
+        Check(ConversationTimeContext.LastUserLetterAt(history) == lastUserAt, "automatic letters do not reset user silence time");
+        Check(new AutoLetterSettings().AiInitiatedMinimumIntervalMinutes == 180, "AI-initiated letters default to a three-hour minimum interval");
+        Check(MimoClient.TryParseAiInitiatedDecision("{\"send\":true}") && !MimoClient.TryParseAiInitiatedDecision("{\"send\":false}"),
+            "AI initiative decision accepts only an explicit send=true result");
+    }
+
+    private static async Task TestAiInitiativeDecisionAsync()
+    {
+        using var server = new LocalResponseServer("{\"choices\":[{\"message\":{\"content\":\"{\\\"send\\\":true}\"},\"finish_reason\":\"stop\"}]}");
+        ConfigureApi(server.Url);
+        var shouldSend = await MimoClient.ShouldSendAiInitiatedLetterAsync([], new DateTime(2026, 8, 31, 15, 0, 0));
+        using var request = JsonDocument.Parse(await server.Request);
+        var prompt = request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        Check(shouldSend && prompt.Contains("当前本地时间") && prompt.Contains("只输出合法 JSON"),
+            "AI initiative receives time context and requires an explicit decision");
     }
 
     private static void TestStyleMemoryMerge()

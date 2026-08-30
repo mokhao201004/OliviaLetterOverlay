@@ -126,11 +126,22 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="92" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="主动来信" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                                <TextBlock Text="定时来信" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
                                 <TextBlock Text="填 0 关闭；程序运行时按间隔生成新来信" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" />
                             </StackPanel>
                             <TextBox x:Name="AutoLetterMinutesBox" Grid.Column="1" Height="30" Padding="9,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
                             <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="分钟" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
+                    <Border Margin="0,0,0,8" Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="92" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <CheckBox x:Name="AiInitiatedEnabledCheck" Content="AI 自主来信" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                                <TextBlock Text="她根据时间与距离你上次写信多久，自己决定要不要寄信；填 0 不限制" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <TextBox x:Name="AiInitiatedMinimumMinutesBox" Grid.Column="1" Height="30" Padding="9,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
+                            <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="最少分钟" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
                     <Border Margin="0,0,0,8" Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">

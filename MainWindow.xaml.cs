@@ -194,7 +194,17 @@ public partial class MainWindow : Window
         var characterId = _characterId;
         var character = CharacterStore.Get(characterId);
         var settings = AutoLetterStore.Load(characterId);
-        if (settings.IntervalMinutes < 10 || (settings.LastSentAt is not null && DateTime.Now - settings.LastSentAt.Value < TimeSpan.FromMinutes(settings.IntervalMinutes)))
+        var now = DateTime.Now;
+        var history = LetterStore.Load(characterId);
+        var scheduledDue = settings.IntervalMinutes >= 10
+            && (settings.LastSentAt is null || now - settings.LastSentAt.Value >= TimeSpan.FromMinutes(settings.IntervalMinutes));
+        var aiMinimumInterval = TimeSpan.FromMinutes(settings.AiInitiatedMinimumIntervalMinutes);
+        var aiCanCheck = settings.AiInitiatedEnabled
+            && settings.AiInitiatedMinimumIntervalMinutes >= 0
+            && (settings.AiInitiatedMinimumIntervalMinutes == 0
+                || ((settings.LastSentAt is null || now - settings.LastSentAt.Value >= aiMinimumInterval)
+                    && (settings.LastAiInitiatedDecisionAt is null || now - settings.LastAiInitiatedDecisionAt.Value >= aiMinimumInterval)));
+        if (!scheduledDue && !aiCanCheck)
         {
             return;
         }
@@ -202,32 +212,20 @@ public partial class MainWindow : Window
         try
         {
             _isGeneratingAutoLetter = true;
-            var reply = await MimoClient.GenerateProactiveLetterAsync(LetterStore.Load(characterId), characterId);
-            var sentAt = DateTime.Now;
-            var letter = new SavedLetter
+            if (scheduledDue)
             {
-                CreatedAt = sentAt,
-                Subject = $"{character.Name}的来信",
-                Draft = $"{character.Name}主动寄来的一封信",
-                Reply = reply,
-                IsAutoLetter = true,
-            };
+                await GenerateAutoLetterAsync(history, characterId, character, settings, isAiInitiated: false);
+                return;
+            }
 
-            var storedLetters = LetterStore.Load(characterId);
-            storedLetters.Insert(0, letter);
-            LetterStore.Save(storedLetters, characterId);
-            settings = AutoLetterStore.Load(characterId);
-            settings.LastSentAt = sentAt;
+            settings.LastAiInitiatedDecisionAt = now;
             AutoLetterStore.Save(settings, characterId);
-            if (CharacterStore.Current.Id != characterId)
+            if (!await MimoClient.ShouldSendAiInitiatedLetterAsync(history, now, characterId))
             {
                 return;
             }
 
-            ReloadSavedLetters();
-            ShowLetter(letter.Subject, FormatDate(letter.CreatedAt), letter.Draft, letter.Reply, letter.Id.ToString("N"));
-            SelectItem(_savedLetterItems[0]);
-            TryAutoReadAloud(letter.Id.ToString("N"), letter.Reply);
+            await GenerateAutoLetterAsync(history, characterId, character, settings, isAiInitiated: true);
         }
         catch
         {
@@ -237,6 +235,36 @@ public partial class MainWindow : Window
         {
             _isGeneratingAutoLetter = false;
         }
+    }
+
+    private async Task GenerateAutoLetterAsync(IReadOnlyList<SavedLetter> history, string characterId, CharacterProfile character,
+        AutoLetterSettings settings, bool isAiInitiated)
+    {
+        var reply = await MimoClient.GenerateProactiveLetterAsync(history, characterId);
+        var sentAt = DateTime.Now;
+        var letter = new SavedLetter
+        {
+            CreatedAt = sentAt,
+            Subject = $"{character.Name}的来信",
+            Draft = isAiInitiated ? $"{character.Name}主动寄来的一封信" : $"{character.Name}定时寄来的一封信",
+            Reply = reply,
+            IsAutoLetter = true,
+        };
+
+        var storedLetters = LetterStore.Load(characterId);
+        storedLetters.Insert(0, letter);
+        LetterStore.Save(storedLetters, characterId);
+        settings.LastSentAt = sentAt;
+        AutoLetterStore.Save(settings, characterId);
+        if (CharacterStore.Current.Id != characterId)
+        {
+            return;
+        }
+
+        ReloadSavedLetters();
+        ShowLetter(letter.Subject, FormatDate(letter.CreatedAt), letter.Draft, letter.Reply, letter.Id.ToString("N"));
+        SelectItem(_savedLetterItems[0]);
+        TryAutoReadAloud(letter.Id.ToString("N"), letter.Reply);
     }
 
     internal void ImportReferenceLetters(IReadOnlyList<PersonaReferenceLetter> references, string characterId)
