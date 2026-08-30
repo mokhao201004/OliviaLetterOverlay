@@ -46,6 +46,12 @@ internal static class RegressionTests
                 return 0;
             }
 
+            if (args.Contains("--verify-reply-flow"))
+            {
+                TestDirectReplyFlowAsync().GetAwaiter().GetResult();
+                return 0;
+            }
+
             if (args.Contains("--verify-reader-typography"))
             {
                 TestReaderTypography();
@@ -201,6 +207,16 @@ internal static class RegressionTests
         Check(PersonaPrompt.System.Contains("情绪缺失高惩罚"), "reply prompt treats detached replies as a high-priority failure");
         Check(PersonaPrompt.System.Contains("口语高惩罚"), "reply prompt avoids uncommon human wording as a high-priority failure");
         Check(PersonaPrompt.System.Contains("对话复盘高惩罚"), "reply prompt rejects assistant-like dialogue recaps");
+    }
+
+    private static async Task TestDirectReplyFlowAsync()
+    {
+        using var server = new LocalResponseServer("{\"choices\":[{\"message\":{\"content\":\"好。\\n\\n—— 林离\"},\"finish_reason\":\"stop\"}]}");
+        ConfigureApi(server.Url);
+        await MimoClient.GenerateReplyAsync("嗯", []);
+        var request = await server.Request;
+        Check(!request.Contains("这一封的写法参考") && !request.Contains("可选素材"),
+            "direct replies do not inject random writing examples or life seeds");
     }
 
     private static void TestStyleMemoryMerge()

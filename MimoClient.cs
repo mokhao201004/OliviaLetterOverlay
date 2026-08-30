@@ -34,7 +34,7 @@ internal static class MimoClient
             new
             {
                 role = "system",
-                content = BuildReplySystemPrompt(characterId) + BuildDiversityBlock(isProactive: false),
+                content = BuildReplySystemPrompt(characterId),
             },
         };
 
