@@ -186,11 +186,11 @@ internal static class MimoClient
         }
     }
 
-    private static bool RequiresEmotionalResponse(string letter)
+    internal static bool RequiresEmotionalResponse(string letter)
     {
         var signals = new[]
         {
-            "难过", "委屈", "疲惫", "累", "空虚", "孤独", "不安", "害怕", "迷茫", "焦虑", "崩溃", "睡不着", "想哭", "高兴", "开心", "激动", "期待", "犹豫", "烦", "不知道怎么办",
+            "难过", "委屈", "疲惫", "好累", "很累", "太累", "累了", "觉得累", "空虚", "孤独", "不安", "害怕", "迷茫", "焦虑", "崩溃", "睡不着", "想哭", "高兴", "开心", "激动", "期待", "犹豫", "好烦", "很烦", "太烦", "烦死", "不知道怎么办",
         };
         return signals.Any(signal => letter.Contains(signal, StringComparison.Ordinal));
     }

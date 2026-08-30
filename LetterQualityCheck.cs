@@ -7,12 +7,12 @@ internal static class LetterQualityCheck
     public static readonly string[] BannedPhrases =
     [
         "我理解你", "别想太多", "你真的很棒", "相信自己", "一切都会好的",
-        "加油", "总而言之", "愿你", "在这个",
+        "加油", "总而言之", "愿你",
     ];
 
     private static readonly string[] HighPenaltyTemplatePhrases =
     [
-        "收到你的信了", "谢谢你愿意", "无论怎样", "不管怎样", "你不是一个人", "希望你能",
+        "收到你的信了", "谢谢你愿意", "无论怎样", "不管怎样", "你不是一个人",
     ];
 
     private static readonly string[] HighPenaltyUnnaturalPhrases =
@@ -23,7 +23,8 @@ internal static class LetterQualityCheck
 
     private static readonly string[] EmotionalResponseMarkers =
     [
-        "在意", "担心", "心里", "听到", "看见", "替你", "陪你", "高兴", "开心", "难受", "委屈", "不容易", "辛苦", "放心", "舍不得",
+        "我在意", "有点担心", "替你担心", "放心不下", "听到你", "听着就", "替你高兴", "我也开心",
+        "我也难受", "心里一紧", "心里不太", "心里有点", "真不容易", "有点心疼", "我想陪",
     ];
 
     public static List<string> Validate(string? text, string signatureName, bool requireEmotion = false)
@@ -128,8 +129,12 @@ internal static class LetterQualityCheck
     {
         var originalHighPenaltyCount = originalIssues.Count(IsHighPenaltyIssue);
         var remainingHighPenaltyCount = remainingIssues.Count(IsHighPenaltyIssue);
-        return remainingHighPenaltyCount < originalHighPenaltyCount
-            || originalHighPenaltyCount == 0 && remainingIssues.Count <= originalIssues.Count;
+        if (originalHighPenaltyCount > 0)
+        {
+            return remainingHighPenaltyCount == 0 && remainingIssues.Count <= originalIssues.Count;
+        }
+
+        return remainingIssues.Count <= originalIssues.Count;
     }
 
     private static bool IsHighPenaltyIssue(string issue) => issue.StartsWith("严重模板化", StringComparison.Ordinal)

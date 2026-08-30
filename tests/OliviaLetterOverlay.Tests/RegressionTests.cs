@@ -160,15 +160,23 @@ internal static class RegressionTests
         Check(judgeLike.Any(issue => issue.Contains("严重不自然表达")), "judge-like agreement opener is a high-penalty violation");
         var aiLike = LetterQualityCheck.Validate("从你的描述中，我能够感受到你的疲惫。这本质上是很正常的。\n\n—— 林离", "林离");
         Check(aiLike.Any(issue => issue.Contains("严重不自然表达")), "formal AI-like wording is a high-penalty violation");
+        var ordinary = LetterQualityCheck.Validate("在这个周末，希望你能睡个好觉。\n\n—— 林离", "林离");
+        Check(ordinary.Count == 0, "ordinary human wording is not mistaken for a template");
 
         var emotionless = LetterQualityCheck.Validate("明天可以早点睡。\n\n—— 林离", "林离", requireEmotion: true);
         Check(emotionless.Any(issue => issue.Contains("严重情绪缺失")), "emotionally relevant letters reject detached replies");
+        var unrelatedMarker = LetterQualityCheck.Validate("我心里有数，明天再说。\n\n—— 林离", "林离", requireEmotion: true);
+        Check(unrelatedMarker.Any(issue => issue.Contains("严重情绪缺失")), "unrelated wording does not bypass emotional response checking");
         var responsive = LetterQualityCheck.Validate("听到你这么累，我心里也有点不踏实。今晚先别逼自己把所有事理顺。\n\n—— 林离", "林离", requireEmotion: true);
         Check(!responsive.Any(issue => issue.Contains("严重情绪缺失")), "specific emotional response is not penalized");
         Check(!LetterQualityCheck.IsRepairImproved(["严重情绪缺失：缺少回应", "缺少落款"], ["严重情绪缺失：仍然缺少回应"]),
             "repair that keeps a high-penalty emotional failure is rejected");
         Check(LetterQualityCheck.IsRepairImproved(["严重情绪缺失：缺少回应", "缺少落款"], ["缺少落款"]),
             "repair that clears a high-penalty emotional failure is accepted");
+        Check(!LetterQualityCheck.IsRepairImproved(["严重模板化：模板", "严重情绪缺失：冷淡"], ["严重情绪缺失：仍然冷淡"]),
+            "repair is rejected until every high-penalty failure is cleared");
+        Check(!MimoClient.RequiresEmotionalResponse("我把资料积累完了，明天继续整理。"), "ordinary words containing 累 do not force emotional repair");
+        Check(MimoClient.RequiresEmotionalResponse("今天真的好累，我有点不想动。"), "clear fatigue requests emotional responsiveness");
 
         Check(LetterQualityCheck.Validate("没有落款的信", "林离").Any(issue => issue.Contains("落款")), "missing signature is flagged");
         Check(LetterQualityCheck.Validate("开头就写林离觉得如何。\n\n—— 林离", "林离").Any(issue => issue.Contains("正文中途")), "mid-text character name is flagged");
