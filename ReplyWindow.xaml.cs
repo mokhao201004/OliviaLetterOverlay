@@ -32,6 +32,10 @@ internal static class ReplyLetterRenderer
     private const string LetterFontFileName = "ChillZhuo.ttf";
     private static string? _resolvedFamilyName;
 
+    internal const double BodyFontSize = 22;
+    internal const double BodyLineHeight = 28;
+    internal const double DateFontSize = 16;
+
     internal static BitmapSource LetterPaperSource => Paper;
 
     public static IReadOnlyList<BitmapSource> RenderPages(string reply, Size size)
@@ -159,12 +163,12 @@ internal static class ReplyLetterRenderer
             CultureInfo.GetCultureInfo("zh-CN"),
             FlowDirection.LeftToRight,
             CreateLetterTypeface(FontWeights.Normal),
-            22,
+            BodyFontSize,
             new SolidColorBrush(Color.FromRgb(30, 26, 22)),
             1.0)
         {
             MaxTextWidth = width * .916,
-            LineHeight = 28,
+            LineHeight = BodyLineHeight,
             Trimming = TextTrimming.None,
         };
 
@@ -200,7 +204,7 @@ internal static class ReplyLetterRenderer
             CultureInfo.GetCultureInfo("zh-CN"),
             FlowDirection.LeftToRight,
             CreateLetterTypeface(FontWeights.Normal),
-            16,
+            DateFontSize,
             new SolidColorBrush(Color.FromRgb(46, 41, 34)),
             1.0);
         DrawThickenedText(drawing, formatted, new Point(width - formatted.Width - width * .04, height - formatted.Height - height * .04));

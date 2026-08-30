@@ -83,10 +83,10 @@ public partial class MainWindow : Window
         InitializeComponent();
         var letterTypeface = ReplyLetterRenderer.CreateLetterTypeface(FontWeights.Normal);
         ReplyTextBlock.FontFamily = letterTypeface.FontFamily;
-        ReplyTextBlock.FontSize = 18;
-        ReplyTextBlock.LineHeight = 23;
+        ReplyTextBlock.FontSize = ReplyLetterRenderer.BodyFontSize;
+        ReplyTextBlock.LineHeight = ReplyLetterRenderer.BodyLineHeight;
         LetterDateText.FontFamily = letterTypeface.FontFamily;
-        LetterDateText.FontSize = 14;
+        LetterDateText.FontSize = ReplyLetterRenderer.DateFontSize;
         PaperBackground.Source = ReplyLetterRenderer.LetterPaperSource;
         LinkInstalledIndexTts();
         RefreshTtsActions();

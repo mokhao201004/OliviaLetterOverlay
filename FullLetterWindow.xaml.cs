@@ -15,12 +15,12 @@ public partial class FullLetterWindow : Window
         LetterViewbox.Height = frameWidth * 310 / 554;
         var typeface = ReplyLetterRenderer.CreateLetterTypeface(FontWeights.Normal);
         ReplyTextBlock.FontFamily = typeface.FontFamily;
-        ReplyTextBlock.FontSize = 18;
-        ReplyTextBlock.LineHeight = 23;
+        ReplyTextBlock.FontSize = ReplyLetterRenderer.BodyFontSize;
+        ReplyTextBlock.LineHeight = ReplyLetterRenderer.BodyLineHeight;
         ReplyTextBlock.Text = reply;
         DateText.Text = date.Length >= 10 ? date[..10] : date;
         DateText.FontFamily = typeface.FontFamily;
-        DateText.FontSize = 14;
+        DateText.FontSize = ReplyLetterRenderer.DateFontSize;
         PaperBackground.Source = ReplyLetterRenderer.LetterPaperSource;
         ReplyTextBlock.Padding = new Thickness(0, 0, 0, 12);
     }

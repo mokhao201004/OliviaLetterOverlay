@@ -46,6 +46,12 @@ internal static class RegressionTests
                 return 0;
             }
 
+            if (args.Contains("--verify-reader-typography"))
+            {
+                TestReaderTypography();
+                return 0;
+            }
+
             TestCharacters();
             TestLetterTitles();
             TestRequestsAsync().GetAwaiter().GetResult();
@@ -357,8 +363,32 @@ internal static class RegressionTests
         }
     }
 
+    private static void TestReaderTypography()
+    {
+        var app = new App();
+        app.InitializeComponent();
+        app.ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+        var window = new MainWindow();
+        try
+        {
+            Check(window.ReplyTextBlock.FontSize == ReplyLetterRenderer.BodyFontSize
+                && window.ReplyTextBlock.LineHeight == ReplyLetterRenderer.BodyLineHeight
+                && window.LetterDateText.FontSize == ReplyLetterRenderer.DateFontSize,
+                "reader typography matches the exported letter typography");
+        }
+        finally
+        {
+            window.Close();
+            app.Shutdown();
+        }
+    }
+
     private static void TestReplyRendering(MainWindow window)
     {
+        Check(window.ReplyTextBlock.FontSize == ReplyLetterRenderer.BodyFontSize
+            && window.ReplyTextBlock.LineHeight == ReplyLetterRenderer.BodyLineHeight
+            && window.LetterDateText.FontSize == ReplyLetterRenderer.DateFontSize,
+            "reader typography matches the exported letter typography");
         var body = string.Join("\n\n", Enumerable.Range(1, 20).Select(index =>
             $"第{index}段：周末的风从窗边吹过，我把这一路看到的云和树都慢慢写下来。这一段应当完整留在信纸上，不应该因为篇幅变长就被省略。")) + "\n\n";
         var longReply = body + "这是最后一行，收尾验证甲。";
