@@ -56,6 +56,7 @@ internal static class RegressionTests
             {
                 TestTimeAwareness();
                 TestAiInitiativeDecisionAsync().GetAwaiter().GetResult();
+                TestProactiveMessageFlowAsync().GetAwaiter().GetResult();
                 return 0;
             }
 
@@ -251,8 +252,19 @@ internal static class RegressionTests
         var shouldSend = await MimoClient.ShouldSendAiInitiatedLetterAsync([], new DateTime(2026, 8, 31, 15, 0, 0));
         using var request = JsonDocument.Parse(await server.Request);
         var prompt = request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
-        Check(shouldSend && prompt.Contains("当前本地时间") && prompt.Contains("只输出合法 JSON"),
+        Check(shouldSend && prompt.Contains("当前本地时间") && prompt.Contains("上下文联系") && prompt.Contains("只输出合法 JSON"),
             "AI initiative receives time context and requires an explicit decision");
+    }
+
+    private static async Task TestProactiveMessageFlowAsync()
+    {
+        using var server = new LocalResponseServer("{\"choices\":[{\"message\":{\"content\":\"最近还好吗？\\n\\n—— 林离\"},\"finish_reason\":\"stop\"}]}");
+        ConfigureApi(server.Url);
+        await MimoClient.GenerateProactiveLetterAsync([new SavedLetter { CreatedAt = DateTime.Now.AddDays(-2), Draft = "前两天有点累", Reply = "早点休息。" }]);
+        using var request = JsonDocument.Parse(await server.Request);
+        var prompt = request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        Check(prompt.Contains("关心") && prompt.Contains("上下文联系") && !prompt.Contains("选一个具体的小主题"),
+            "all proactive letters must be caring or context-linked instead of unrelated life updates");
     }
 
     private static void TestStyleMemoryMerge()

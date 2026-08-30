@@ -126,7 +126,7 @@ internal static class MimoClient
             {
                 role = "system",
                 content = BuildReplySystemPrompt(characterId) + "\n\n" + ConversationTimeContext.BuildPromptContext(history, DateTime.Now)
-                    + BuildDiversityBlock(isProactive: true) + "\n\n现在请主动写一封来信。这封信没有需要回应的来信，也不必回答任何问题：选一个具体的小主题，按逻辑从头到尾把它说清楚、写连贯就好，可以只围绕这一件事展开。不要假装刚收到用户的新信，也不要编造没有记录的事件；优先从记忆或最近往来中选择一个自然相关的小切口。若没有相关记忆，就写一封克制、具体的近况问候。",
+                    + "\n\n现在请主动写一封来信。主动消息只能有两种理由：一是关心，必须和用户最近说过的低落、疲惫、重要事情，或较长时间没写信有关；二是上下文联系，必须明确接着最近聊过的事、已有记忆或约定。两种理由至少满足一种，且落到具体内容上。不要为了刷存在感讲无关的练琴、天气、吃饭或日常见闻，也不要把没有上下文的泛泛问候写成一封信。",
             },
         };
 
@@ -159,7 +159,7 @@ internal static class MimoClient
             {
                 role = "system",
                 content = BuildReplySystemPrompt(characterId) + "\n\n" + ConversationTimeContext.BuildPromptContext(history, now)
-                    + "\n\n你现在只负责决定要不要主动寄一封信。只有在确实自然、有话想说，而且距离用户上次写信已有一段时间时才发；不要因为刚聊过、只是想刷存在感，或没有具体内容就发。只输出合法 JSON，不要解释：{\"send\":true} 或 {\"send\":false}。",
+                    + "\n\n你现在只负责决定要不要主动寄一封信。只有两种情况能返回 send=true：一是关心，且关心能对应用户最近的情绪、重要事情或较长时间没写信；二是上下文联系，且能明确接着最近聊过的事、已有记忆或约定。没有这两种理由就返回 send=false；不要因为刚聊过、只是想刷存在感，或没有具体内容就发。只输出合法 JSON，不要解释：{\"send\":true} 或 {\"send\":false}。",
             },
         };
 
@@ -487,49 +487,6 @@ internal static class MimoClient
         {
             throw new InvalidOperationException("记忆分析格式不完整，请重试。信箱内容未写入记忆库。");
         }
-    }
-
-    // 每封信随机抽一封写法参考（形状/质感/长度的锚点）与 0–2 条可选素材，
-    // 让信在形式与内容两个层面都无法被套进模板。参考内容绝不许被复述。
-    private static string BuildDiversityBlock(bool isProactive)
-    {
-        var random = Random.Shared;
-        var exemplar = LetterDiversity.SampleExemplar(random);
-        var seeds = LetterDiversity.SampleSeeds(random);
-        var deltas = new[]
-        {
-            "长度：全封大约 120–220 字，比参考明显更短",
-            "长度：全封大约 300–450 字，把最后提到的事展开两句",
-            "开头：不要照参考的起头方式，改成直接回应对方最关心的点",
-            "开头：以一个问句开始",
-            "开头：抓住对方来信里最不寻常的一个词，从它说起",
-            "结尾：不要学参考的收法，用一句平白话直接停",
-            "结尾：停在一个没说完的想法上",
-            "语气：比参考更平更直，把文气的部分去掉",
-            "语气：比参考更慢更沉，句子更短",
-        };
-        var pickedDeltas = new List<string>();
-        while (pickedDeltas.Count < 2)
-        {
-            var delta = deltas[random.Next(deltas.Length)];
-            var dimension = delta.Split('：')[0];
-            if (!pickedDeltas.Any(item => item.StartsWith(dimension, StringComparison.Ordinal)))
-            {
-                pickedDeltas.Add(delta);
-            }
-        }
-
-        var purpose = isProactive
-            ? "只学它的说话质感（用词的平实程度、句子节奏），不要学它的形状和长度；内容换成这一封主动来信自己的主题；参考里没有落款，落款按前文规则用你自己的名字"
-            : "只学它的说话质感（用词的平实程度、句子节奏），不要学它的形状和长度；内容必须完全换成对这次来信的回应，绝不复述参考里的具体内容；参考里没有落款，落款按前文规则用你自己的名字";
-        var block = "\n\n这一封的写法参考（" + purpose + "）：\n「" + exemplar + "」";
-        block += "\n\n但这一封必须同时做下面两处改动（与参考冲突时以改动为准）：\n- " + string.Join("\n- ", pickedDeltas);
-        if (seeds.Count > 0)
-        {
-            block += "\n\n可选素材（最多用一条，也可以完全不用；用了必须自然融进叙述，不许逐字照抄）：\n" + string.Join("\n", seeds.Select(seed => "- " + seed));
-        }
-
-        return block;
     }
 
     private static string BuildReplySystemPrompt(string characterId)
