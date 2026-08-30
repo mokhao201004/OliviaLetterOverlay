@@ -276,7 +276,7 @@ public partial class ApiSettingsWindow : Window
     {
         if (!int.TryParse(AutoLetterMinutesBox.Text.Trim(), out var intervalMinutes) || intervalMinutes < 0 || (intervalMinutes > 0 && intervalMinutes < 10))
         {
-            StatusText.Text = "定时来信填 0 关闭，启用时最低为 10 分钟。";
+            StatusText.Text = "定时回复填 0 关闭，启用时最低为 10 分钟。";
             return;
         }
 

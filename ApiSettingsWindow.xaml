@@ -126,7 +126,7 @@
                         <Grid>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="92" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="定时来信" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                                <TextBlock Text="定时回复" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
                                 <TextBlock Text="填 0 关闭；程序运行时按间隔生成新来信" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" />
                             </StackPanel>
                             <TextBox x:Name="AutoLetterMinutesBox" Grid.Column="1" Height="30" Padding="9,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" />
