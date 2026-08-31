@@ -319,7 +319,7 @@
 
                 <Border x:Name="MailboxPanel" Grid.Column="2" Background="#FF17191E" BorderBrush="#FF292C32" BorderThickness="1" CornerRadius="16">
                     <Grid Margin="14,12,14,10">
-                        <Grid.RowDefinitions><RowDefinition Height="42" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="42" /><RowDefinition Height="*" /><RowDefinition Height="76" /></Grid.RowDefinitions>
                         <TextBlock x:Name="MailboxTitleText" Grid.Row="0" Margin="10,0,0,0" Text="我的信箱  3" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="17" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" />
                         <ScrollViewer Grid.Row="1" Margin="0,3,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <ScrollViewer.Resources>
@@ -389,6 +389,21 @@
                             </Button>
                             </StackPanel>
                         </ScrollViewer>
+
+                        <Border Grid.Row="2" Margin="0,10,0,0" Background="#FF202329" BorderBrush="#FF2D3037" BorderThickness="1" CornerRadius="14" Padding="10,0">
+                            <Grid>
+                                <Border Width="36" Height="36" Background="#FF3D4149" CornerRadius="10" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Margin="48,0,72,0" VerticalAlignment="Center">
+                                    <TextBlock x:Name="ComposeRecipientText" Text="给林离写信" TextTrimming="CharacterEllipsis" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="14" FontWeight="SemiBold" />
+                                    <TextBlock Margin="0,3,0,0" Text="今天还可寄 67 封书信" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                </StackPanel>
+                                <Button x:Name="ComposeButton" Width="68" Height="40" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FFE7DED5" BorderBrush="#FFE7DED5" BorderThickness="0" Foreground="#FF2B2927" FontFamily="Microsoft YaHei UI" FontSize="14" FontWeight="SemiBold" Content="写信" Cursor="Hand" Click="ComposeButton_OnClick">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="20" /></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                        </Border>
 
                     </Grid>
                 </Border>

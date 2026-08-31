@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 
@@ -17,6 +18,7 @@ public partial class ComposeWindow : Window
         InitializeComponent();
         ComposeHintText.Text = $"今天有什么想跟{CharacterStore.Get(_characterId).Name}分享的？";
         ComposerPaperImage.Source = ComposerPaperRenderer.Render(new Size(830, 478));
+        DraftBox.Text = ComposeDraftStore.Load(_characterId);
     }
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e) => Close();
@@ -24,6 +26,15 @@ public partial class ComposeWindow : Window
     private void ClearButton_OnClick(object sender, RoutedEventArgs e)
     {
         DraftBox.Clear();
+        try
+        {
+            ComposeDraftStore.Clear(_characterId);
+        }
+        catch (IOException exception)
+        {
+            DiagnosticLog.Write("compose", $"draft_clear_failed error={DiagnosticLog.Redact(exception.Message)}");
+        }
+
         StatusText.Visibility = Visibility.Collapsed;
         DraftBox.Focus();
     }
@@ -52,6 +63,7 @@ public partial class ComposeWindow : Window
             StatusText.Text = "正在生成回信…";
             StatusText.Visibility = Visibility.Visible;
             var reply = await MimoClient.GenerateReplyAsync(draft, _history, _characterId);
+            ComposeDraftStore.Clear(_characterId);
             LetterCreated?.Invoke(this, new LetterCreatedEventArgs(draft, reply, _characterId));
             Close();
         }
@@ -80,6 +92,18 @@ public partial class ComposeWindow : Window
         if (e.Key == Key.Escape)
         {
             Close();
+        }
+    }
+
+    private void Window_OnClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        try
+        {
+            ComposeDraftStore.Save(DraftBox.Text, _characterId);
+        }
+        catch (IOException exception)
+        {
+            DiagnosticLog.Write("compose", $"draft_save_failed error={DiagnosticLog.Redact(exception.Message)}");
         }
     }
 }

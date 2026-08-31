@@ -137,6 +137,7 @@ public partial class MainWindow : Window
         UserStyleStore.MigrateLegacyEntries(_characterId);
         CharacterButton.Content = $"角色：{character.Name} ▾";
         CharacterButton.ToolTip = $"当前角色：{character.Name}；点击切换角色与独立记忆";
+        ComposeRecipientText.Text = $"给{character.Name}写信";
         HelloItem.Visibility = WelcomeItem.Visibility = character.Id == CharacterStore.DefaultId ? Visibility.Visible : Visibility.Collapsed;
         ReloadSavedLetters();
         ConversationCompressionService.Queue(_characterId, _savedLetters);

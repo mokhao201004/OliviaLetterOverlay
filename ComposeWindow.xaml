@@ -9,6 +9,7 @@
         ShowInTaskbar="True"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
+        Closing="Window_OnClosing"
         PreviewKeyDown="Window_OnPreviewKeyDown">
     <Border Background="#FF22242A" CornerRadius="12">
         <Grid Margin="24">

@@ -86,6 +86,7 @@ internal static class RegressionTests
             TestDiagnostics();
             TestCachedMusicLibrary();
             TestLetterTitleControls();
+            TestComposeDrafts();
             TestTtsClient();
             TestStyleMemoryMerge();
             TestLetterQualityCheck();
@@ -316,6 +317,22 @@ internal static class RegressionTests
         var prompt = request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!;
         Check(prompt.Contains("关心") && prompt.Contains("上下文联系") && !prompt.Contains("选一个具体的小主题"),
             "all proactive letters must be caring or context-linked instead of unrelated life updates");
+    }
+
+    private static void TestComposeDrafts()
+    {
+        var character = CharacterStore.Create("草稿隔离", "");
+        var draft = "第一行还没写完。\n第二行也要保留。";
+        ComposeDraftStore.Save(draft, character.Id);
+        Check(ComposeDraftStore.Load(character.Id) == draft, "compose draft preserves unfinished text");
+        Check(ComposeDraftStore.Load(CharacterStore.DefaultId) == string.Empty, "compose draft is isolated by character");
+
+        ComposeDraftStore.Save("   ", character.Id);
+        Check(ComposeDraftStore.Load(character.Id) == string.Empty, "blank compose draft is cleared");
+
+        ComposeDraftStore.Save("发送前的草稿", character.Id);
+        ComposeDraftStore.Clear(character.Id);
+        Check(ComposeDraftStore.Load(character.Id) == string.Empty, "clearing compose draft removes saved text");
     }
 
     private static void TestStyleMemoryMerge()
