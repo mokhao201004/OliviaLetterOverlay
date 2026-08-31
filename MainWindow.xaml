@@ -7,6 +7,7 @@
         Background="Transparent"
         ResizeMode="NoResize"
         ShowInTaskbar="True"
+        Icon="Assets/olivia-icon-preview.png"
         SizeToContent="Manual"
         MinWidth="1200"
         MinHeight="907"
@@ -15,8 +16,8 @@
         PreviewKeyDown="Window_OnPreviewKeyDown">
     <Window.Resources>
         <Style x:Key="WindowButton" TargetType="Button">
-            <Setter Property="Width" Value="38" />
-            <Setter Property="Height" Value="38" />
+            <Setter Property="Width" Value="32" />
+            <Setter Property="Height" Value="32" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Foreground" Value="#FF888A91" />
@@ -26,7 +27,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="16">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
                     </ControlTemplate>
@@ -35,9 +36,9 @@
         </Style>
         <Style x:Key="PillButton" TargetType="Button">
             <Setter Property="Height" Value="34" />
-            <Setter Property="Padding" Value="14,0" />
-            <Setter Property="Background" Value="#FF17191E" />
-            <Setter Property="BorderBrush" Value="#FF565962" />
+            <Setter Property="Padding" Value="13,0" />
+            <Setter Property="Background" Value="#FF202228" />
+            <Setter Property="BorderBrush" Value="#FF3B3E46" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Foreground" Value="#FFD1D3D8" />
             <Setter Property="Cursor" Value="Hand" />
@@ -64,7 +65,7 @@
             </Style.Triggers>
         </Style>
         <Style x:Key="MailboxItem" TargetType="Button">
-            <Setter Property="Height" Value="62" />
+            <Setter Property="Height" Value="64" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="Cursor" Value="Hand" />
@@ -72,48 +73,210 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="ItemSurface" Background="{TemplateBinding Background}" CornerRadius="8">
+                        <Border x:Name="ItemSurface" Background="{TemplateBinding Background}" CornerRadius="12">
                             <ContentPresenter />
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="ItemSurface" Property="Background" Value="#FF24272D" />
+                                <Setter TargetName="ItemSurface" Property="Background" Value="#FF25282E" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ItemSurface" Property="Background" Value="#FF30343A" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="RailButton" TargetType="Button">
+            <Setter Property="Width" Value="44" />
+            <Setter Property="Height" Value="44" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="14">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Surface" Property="Background" Value="#FF282B31" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Surface" Property="Background" Value="#FF454850" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="SongRowButton" TargetType="Button">
+            <Setter Property="Height" Value="62" />
+            <Setter Property="Margin" Value="0,0,12,8" />
+            <Setter Property="Background" Value="#FF292C31" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SongSurface" Background="{TemplateBinding Background}" CornerRadius="14">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SongSurface" Property="Background" Value="#FF393D43" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="SongSurface" Property="Background" Value="#FF4A4E55" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MusicControlButton" TargetType="Button">
+            <Setter Property="Width" Value="30" />
+            <Setter Property="Height" Value="30" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}" CornerRadius="15">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="#FF44474E" /></Trigger>
+                            <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="#FF5A5D64" /></Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="MusicProgressSlider" TargetType="Slider">
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <Border Height="4" Background="#FF5A5D63" CornerRadius="2" />
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Background="#FFE9DED4" BorderThickness="0">
+                                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="{TemplateBinding Background}" CornerRadius="2" /></ControlTemplate></RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Background="Transparent" BorderThickness="0">
+                                        <RepeatButton.Template><ControlTemplate TargetType="RepeatButton"><Border Background="Transparent" /></ControlTemplate></RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Width="10" Height="10" Background="#FFF5EEE7" BorderBrush="#FFF5EEE7" BorderThickness="0">
+                                        <Thumb.Template><ControlTemplate TargetType="Thumb"><Ellipse Fill="{TemplateBinding Background}" /></ControlTemplate></Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <DataTemplate x:Key="LibrarySongTemplate">
+            <Button Style="{StaticResource SongRowButton}" Tag="{Binding}" ToolTip="右键可以改歌曲名称" Click="MusicSongButton_OnClick" ContextMenuOpening="MusicSongContextMenu_OnOpening">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="重命名歌曲" Click="RenameMusicSong_OnClick" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+                <Grid Margin="14,0,14,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="44" />
+                        <ColumnDefinition Width="50" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding Number}" Foreground="#FFB8BABD" FontFamily="Microsoft YaHei UI" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Width="38" Height="38" Background="#FF696969" CornerRadius="6" VerticalAlignment="Center">
+                        <Grid>
+                            <TextBlock Text="✦" FontFamily="Segoe UI Symbol" FontSize="14" FontWeight="SemiBold" Foreground="#FFF4F1EC" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4,0,0,0" />
+                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="16" Foreground="#FFF4F1EC" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,4" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Grid.Column="2" Text="{Binding Title}" TextTrimming="CharacterEllipsis" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border x:Name="PlayOverlay" Grid.Column="3" Width="30" Height="30" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#EAF1EBE3" CornerRadius="15" Opacity="0">
+                        <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#FF272526" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                    <Setter TargetName="PlayOverlay" Property="Opacity" Value="1" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
+        <DataTemplate x:Key="WallpaperSongTemplate">
+            <Button Style="{StaticResource SongRowButton}" Height="50" Margin="0,0,0,8" Tag="{Binding}" ToolTip="右键可以改歌曲名称" Click="MusicSongButton_OnClick" ContextMenuOpening="MusicSongContextMenu_OnOpening">
+                <Button.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="重命名歌曲" Click="RenameMusicSong_OnClick" />
+                    </ContextMenu>
+                </Button.ContextMenu>
+                <Grid Margin="10,0">
+                    <Border Width="32" Height="32" Background="#FF696969" CornerRadius="5" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <Grid>
+                            <TextBlock Text="✦" FontFamily="Segoe UI Symbol" FontSize="12" FontWeight="SemiBold" Foreground="#FFF4F1EC" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3,-1,0,0" />
+                            <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="13" Foreground="#FFF4F1EC" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,4,3" />
+                        </Grid>
+                    </Border>
+                    <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" Margin="42,0,36,0" />
+                    <Border x:Name="PlayOverlay" Width="26" Height="26" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#EAF1EBE3" CornerRadius="13" Opacity="0">
+                        <TextBlock Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="11" Foreground="#FF272526" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+            </Button>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Button}}" Value="True">
+                    <Setter TargetName="PlayOverlay" Property="Opacity" Value="1" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
     </Window.Resources>
 
-    <Border Background="#FF0F1013" BorderBrush="#FF33353A" BorderThickness="1" CornerRadius="7">
+    <Border Background="#FF0D0F12" BorderBrush="#FF2A2D33" BorderThickness="1" CornerRadius="16">
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="123" />
+                <RowDefinition Height="94" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="Header_OnMouseLeftButtonDown">
-                <TextBlock Margin="20,52,0,0"
+                <TextBlock x:Name="PageTitleText" Margin="24,30,0,0"
                            Text="信箱"
                            Foreground="#FFF2F0EC"
                            FontFamily="Microsoft YaHei UI"
-                           FontSize="35"
+                           FontSize="30"
                            FontWeight="Bold"
                            HorizontalAlignment="Left"
                            VerticalAlignment="Top" />
-                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,18,0" Orientation="Horizontal">
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,11,18,0" Orientation="Horizontal">
                     <Button Style="{StaticResource WindowButton}" Content="&#xE921;" Click="MinimizeButton_OnClick" IsTabStop="False" />
                     <Button Style="{StaticResource WindowButton}" Content="&#xE8BB;" Click="CloseButton_OnClick" IsTabStop="False" />
                 </StackPanel>
-                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,20,25" Orientation="Horizontal">
-                    <Button x:Name="CharacterButton" MaxWidth="240" Height="38" Padding="12,0" Margin="0,0,14,0" Background="#FF22242A" BorderBrush="#FF4D5058" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" Cursor="Hand" Content="切换角色" Click="CharacterButton_OnClick">
+                <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,22,14" Orientation="Horizontal">
+                    <Button x:Name="CharacterButton" MaxWidth="240" Height="34" Padding="12,0" Margin="0,0,12,0" Background="#FF1D2025" BorderBrush="#FF3B3E46" Foreground="#FFE8E6E2" FontFamily="Microsoft YaHei UI" Cursor="Hand" Content="切换角色" Click="CharacterButton_OnClick">
                         <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="19" /></Style></Button.Resources>
                     </Button>
-                    <Border Width="87" Height="29" CornerRadius="6" Background="#FF453A2E">
+                    <Border Width="78" Height="26" CornerRadius="13" Background="#FF3B332B">
                         <TextBlock Text="测试版" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFF5EEE8" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
                     </Border>
-                    <Button Width="64" Height="38" Margin="12,0,0,0" Background="Transparent" BorderBrush="#FF4D5058" BorderThickness="1" Cursor="Hand" ToolTip="AI 模型设置" Click="ApiSettingsButton_OnClick">
+                    <Button Width="60" Height="34" Margin="10,0,0,0" Background="Transparent" BorderBrush="#FF3B3E46" BorderThickness="1" Cursor="Hand" ToolTip="AI 模型设置" Click="ApiSettingsButton_OnClick">
                         <Button.Resources>
                             <Style TargetType="Border"><Setter Property="CornerRadius" Value="20" /></Style>
                         </Button.Resources>
@@ -126,17 +289,39 @@
                 </StackPanel>
             </Grid>
 
-            <Grid Grid.Row="1" Margin="20,0,20,37">
+            <Grid Grid.Row="1" Margin="24,0,24,22">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="361" />
-                    <ColumnDefinition Width="9" />
+                    <ColumnDefinition Width="52" />
+                    <ColumnDefinition Width="14" />
+                    <ColumnDefinition Width="318" />
+                    <ColumnDefinition Width="16" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="#FF181A1F" CornerRadius="11">
-                    <Grid Margin="13">
-                        <TextBlock x:Name="MailboxTitleText" Margin="12,3,0,0" Text="我的信箱  3" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="18" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Top" />
-                        <ScrollViewer Margin="0,51,0,100" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Border Grid.Column="0" Background="#FF17191D" BorderBrush="#FF272A30" BorderThickness="1" CornerRadius="20">
+                    <Border Width="44" Padding="1,7" Background="#FF202329" CornerRadius="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <StackPanel>
+                            <Button x:Name="RailMailboxButton" Style="{StaticResource RailButton}" Margin="0,0,0,2" ToolTip="信箱" Click="MailboxRailButton_OnClick">
+                                <Grid>
+                                    <Ellipse Width="29" Height="29" Fill="#FFF0E9DF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="#FF2C2A2A" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                            <Button x:Name="RailMusicButton" Style="{StaticResource RailButton}" Margin="0" ToolTip="本地音乐" Click="MusicButton_OnClick">
+                                <Grid>
+                                <Ellipse Width="29" Height="29" Fill="#FFF0E9DF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="#FF2C2A2A" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </Border>
+
+                <Border x:Name="MailboxPanel" Grid.Column="2" Background="#FF17191E" BorderBrush="#FF292C32" BorderThickness="1" CornerRadius="16">
+                    <Grid Margin="14,12,14,10">
+                        <Grid.RowDefinitions><RowDefinition Height="42" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                        <TextBlock x:Name="MailboxTitleText" Grid.Row="0" Margin="10,0,0,0" Text="我的信箱  3" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="17" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                        <ScrollViewer Grid.Row="1" Margin="0,3,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <ScrollViewer.Resources>
                                 <Style TargetType="ScrollBar" BasedOn="{StaticResource HiddenScrollBarStyle}">
                                     <Setter Property="Width" Value="6" />
@@ -180,23 +365,23 @@
                             </ScrollViewer.Resources>
                             <StackPanel>
                                 <StackPanel x:Name="SavedLettersPanel" />
-                            <Button x:Name="HelloItem" Style="{StaticResource MailboxItem}" Background="#FF292C31" Margin="0,4,0,0" Click="MailboxItem_OnClick" Tag="你好">
-                                <Grid Margin="12,0">
-                                    <Border Width="40" Height="40" CornerRadius="6" Background="#FF557A6A" HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <Button x:Name="HelloItem" Style="{StaticResource MailboxItem}" Background="#FF292C31" Margin="0,3,0,0" Click="MailboxItem_OnClick" Tag="你好">
+                                <Grid Margin="14,0">
+                                    <Border Width="36" Height="36" CornerRadius="10" Background="#FF557A6A" HorizontalAlignment="Left" VerticalAlignment="Center">
                                         <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
-                                    <StackPanel Margin="52,8,0,0" VerticalAlignment="Center">
+                                    <StackPanel Margin="50,0,10,0" VerticalAlignment="Center">
                                         <TextBlock x:Name="HelloTitleText" Text="你好" TextTrimming="CharacterEllipsis" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
                                         <TextBlock Margin="0,3,0,0" Text="2026-08-26 18:08" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
                                     </StackPanel>
                                 </Grid>
                             </Button>
-                            <Button x:Name="WelcomeItem" Style="{StaticResource MailboxItem}" Margin="0,4,0,0" Click="MailboxItem_OnClick" Tag="欢迎来到信箱">
-                                <Grid Margin="12,0">
-                                    <Border Width="40" Height="40" CornerRadius="6" Background="#FF7A5068" HorizontalAlignment="Left" VerticalAlignment="Center">
+                            <Button x:Name="WelcomeItem" Style="{StaticResource MailboxItem}" Margin="0,3,0,0" Click="MailboxItem_OnClick" Tag="欢迎来到信箱">
+                                <Grid Margin="14,0">
+                                    <Border Width="36" Height="36" CornerRadius="10" Background="#FF7A5068" HorizontalAlignment="Left" VerticalAlignment="Center">
                                         <TextBlock Text="&#xE8F1;" FontFamily="Segoe MDL2 Assets" FontSize="18" Foreground="#FFF2F0EC" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
-                                    <StackPanel Margin="52,8,0,0" VerticalAlignment="Center">
+                                    <StackPanel Margin="50,0,10,0" VerticalAlignment="Center">
                                         <TextBlock x:Name="WelcomeTitleText" Text="欢迎来到信箱" TextTrimming="CharacterEllipsis" Foreground="#FFF0EEEB" FontFamily="Microsoft YaHei UI" FontSize="15" />
                                         <TextBlock Margin="0,3,0,0" Text="2026-08-26 17:32" Foreground="#FF9B9EA5" FontFamily="Microsoft YaHei UI" FontSize="11" />
                                     </StackPanel>
@@ -205,35 +390,23 @@
                             </StackPanel>
                         </ScrollViewer>
 
-                        <Border Height="80" Background="#FF22242A" CornerRadius="11" VerticalAlignment="Bottom">
-                            <Grid Margin="14,0">
-                                <Border Width="47" Height="47" CornerRadius="6" Background="#FF36383F" HorizontalAlignment="Left" VerticalAlignment="Center">
-                                    <TextBlock Text="&#xE724;" FontFamily="Segoe MDL2 Assets" FontSize="20" Foreground="#FFDDD8D1" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                </Border>
-                                <StackPanel Margin="59,18,85,0" VerticalAlignment="Top">
-                                    <TextBlock x:Name="ComposeTitleText" Text="给林离写信" TextTrimming="CharacterEllipsis" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontWeight="Bold" FontSize="16" />
-                                    <TextBlock Margin="0,3,0,0" Text="今天还有 67 封书信" Foreground="#FF9C9FA6" FontFamily="Microsoft YaHei UI" FontSize="12" />
-                                </StackPanel>
-                                <Button Width="68" Height="42" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FFE9E0D6" BorderBrush="#FFE9E0D6" BorderThickness="0" Content="写信" Foreground="#FF2B2927" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="15" Cursor="Hand" Click="ComposeButton_OnClick">
-                                    <Button.Resources>
-                                        <Style TargetType="Border"><Setter Property="CornerRadius" Value="21" /></Style>
-                                    </Button.Resources>
-                                </Button>
-                            </Grid>
-                        </Border>
                     </Grid>
                 </Border>
 
-                <Border Grid.Column="2" Background="#FF181A1F" CornerRadius="11">
+                <Border x:Name="LetterPanel" Grid.Column="4" Background="#FF17191E" BorderBrush="#FF292C32" BorderThickness="1" CornerRadius="16">
                     <Grid>
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="85" />
+                            <RowDefinition Height="111" />
                             <RowDefinition Height="1" />
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" Margin="23,0,24,0">
+                        <Grid Grid.Row="0" Margin="22,20,22,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="52" />
+                                <RowDefinition Height="39" />
+                            </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                            <StackPanel Margin="0,0,16,0" VerticalAlignment="Center">
+                            <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,16,0" VerticalAlignment="Center">
                                 <Button x:Name="LetterTitleButton" Style="{StaticResource MailboxItem}" Height="30" ToolTip="重命名这条聊天记录" AutomationProperties.Name="重命名聊天记录" Click="LetterTitleButton_OnClick">
                                     <DockPanel>
                                         <TextBlock DockPanel.Dock="Right" Margin="10,0,4,0" Text="&#xE70F;" Foreground="#FF9C9FA6" FontFamily="Segoe MDL2 Assets" FontSize="13" VerticalAlignment="Center" />
@@ -252,20 +425,20 @@
                                 </Grid>
                                 <TextBlock x:Name="DateText" Margin="0,8,0,0" Text="2026-08-26 18:08" Foreground="#FFB7B9BE" FontFamily="Microsoft YaHei UI" FontSize="13" />
                             </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
-                                <Button x:Name="ReadAloudButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="ReadAloudButton_OnClick" ToolTip="用 Olivia 的声音朗读这封回信">
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+                                <Button x:Name="ReadAloudButton" Style="{StaticResource PillButton}" Margin="0,0,7,0" Click="ReadAloudButton_OnClick" ToolTip="用 Olivia 的声音朗读这封回信">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock x:Name="ReadAloudButtonIcon" Text="&#xE768;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
                                         <TextBlock x:Name="ReadAloudButtonLabel" Margin="5,0,0,0" Text="朗读" FontFamily="Microsoft YaHei UI" FontSize="13" />
                                     </StackPanel>
                                 </Button>
-                                <Button x:Name="RegenerateAudioButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="RegenerateAudioButton_OnClick" ToolTip="不满意这版语音？换一个随机种子重新合成">
+                                <Button x:Name="RegenerateAudioButton" Style="{StaticResource PillButton}" Margin="0,0,7,0" Click="RegenerateAudioButton_OnClick" ToolTip="不满意这版语音？换一个随机种子重新合成">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
                                         <TextBlock x:Name="RegenerateAudioButtonLabel" Margin="5,0,0,0" Text="重新生成" FontFamily="Microsoft YaHei UI" FontSize="13" />
                                     </StackPanel>
                                 </Button>
-                                <Button x:Name="DownloadButton" Style="{StaticResource PillButton}" Margin="0,0,10,0" Click="DownloadButton_OnClick">
+                                <Button x:Name="DownloadButton" Style="{StaticResource PillButton}" Margin="0,0,7,0" Click="DownloadButton_OnClick">
                                     <StackPanel Orientation="Horizontal">
                                         <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="12" VerticalAlignment="Center" />
                                         <TextBlock x:Name="DownloadButtonLabel" Margin="5,0,0,0" Text="下载" FontFamily="Microsoft YaHei UI" FontSize="13" />
@@ -279,9 +452,9 @@
                                 </Button>
                             </StackPanel>
                         </Grid>
-                        <Border Grid.Row="1" Background="#FF292B30" />
-                        <ScrollViewer x:Name="LetterScrollViewer" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
-                            <StackPanel Width="554" HorizontalAlignment="Center" Margin="0,20,0,0">
+                        <Border Grid.Row="1" Background="#FF24272D" />
+                        <ScrollViewer x:Name="LetterScrollViewer" Grid.Row="2" Background="#FF14161A" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
+                            <StackPanel Width="554" HorizontalAlignment="Center" Margin="0,22,0,22">
                                 <!-- 三层分离：纸面（含边框）固定不动，文字层独立滚动；右下角半透明按钮进入全屏看信 -->
                                 <Grid x:Name="ReplyPaperStack" Height="310" ClipToBounds="True">
                                     <Image x:Name="PaperBackground" Stretch="Fill" />
@@ -298,6 +471,78 @@
                         </ScrollViewer>
                     </Grid>
                 </Border>
+
+                <!-- 这一页只负责选歌；视频由桌面壁纸宿主播放在桌面图标后面。 -->
+                <Grid x:Name="MusicPage" Grid.Column="2" Grid.ColumnSpan="3" Visibility="Collapsed" ClipToBounds="True" Background="#FF101115">
+                    <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="78" /></Grid.RowDefinitions>
+                    <Grid Margin="16">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="300" /></Grid.ColumnDefinitions>
+                        <Border Background="#FF1A1C21" BorderBrush="#FF2A2D33" BorderThickness="1" CornerRadius="15" Padding="18">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="50" /><RowDefinition Height="1" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <Grid>
+                                    <TextBlock Text="本地曲库" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="18" FontWeight="Bold" VerticalAlignment="Center" />
+                                    <TextBlock Text="右键歌曲名称即可修改" Foreground="#FFB7B9BE" FontFamily="Microsoft YaHei UI" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                </Grid>
+                                <Border Grid.Row="1" Background="#FF2D3037" />
+                                <Grid Grid.Row="2">
+                                    <ScrollViewer x:Name="MusicSongScrollViewer" Margin="0,12,0,0" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                                        <ItemsControl x:Name="MusicSongsList" ItemTemplate="{StaticResource LibrarySongTemplate}" />
+                                    </ScrollViewer>
+                                    <TextBlock x:Name="MusicEmptyText" Visibility="Collapsed" Text="还没有找到保存的歌曲" TextWrapping="Wrap" TextAlignment="Center" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                        <Border Grid.Column="1" Margin="12,0,0,0" Background="#FF1A1C21" BorderBrush="#FF2A2D33" BorderThickness="1" CornerRadius="15" Padding="14">
+                            <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="42" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                <TextBlock x:Name="WallpaperListTitleText" Text="壁纸音乐" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl x:Name="WallpaperSongsList" ItemTemplate="{StaticResource WallpaperSongTemplate}" />
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                    <Border Grid.Row="1" Margin="16,6,16,10" Background="#FF202329" BorderBrush="#FF353840" BorderThickness="1" CornerRadius="21" Padding="16,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="250" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="42" />
+                            </Grid.ColumnDefinitions>
+                            <Border Width="42" Height="42" Background="#FF696969" CornerRadius="6" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                <Grid>
+                                    <TextBlock Text="✦" FontFamily="Segoe UI Symbol" FontSize="15" FontWeight="SemiBold" Foreground="#FFF4F1EC" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,1,0,0" />
+                                    <TextBlock Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" FontSize="17" Foreground="#FFF4F1EC" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,6,5" />
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="CurrentWallpaperText" Text="选择一首歌开始播放" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center" Margin="56,0,0,0" TextTrimming="CharacterEllipsis" />
+                            <Grid Grid.Column="1" Margin="10,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /><ColumnDefinition Width="42" /><ColumnDefinition Width="34" /><ColumnDefinition Width="34" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                <TextBlock x:Name="MusicElapsedText" Text="0:00" Foreground="#FFC5C7CB" FontSize="11" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <Button Grid.Column="1" Style="{StaticResource MusicControlButton}" ToolTip="循环播放" Click="MusicLoopButton_OnClick"><TextBlock x:Name="MusicLoopIcon" Text="&#xE8EE;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#FFE9DED4" /></Button>
+                                <Button Grid.Column="2" Style="{StaticResource MusicControlButton}" ToolTip="上一首" Click="MusicPreviousButton_OnClick"><TextBlock Text="&#xE892;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#FFF2F0EC" /></Button>
+                                <Button Grid.Column="3" Style="{StaticResource MusicControlButton}" Width="36" Height="36" Background="#FFE9DED4" ToolTip="播放或暂停" Click="MusicPlayPauseButton_OnClick"><TextBlock x:Name="MusicPlayPauseIcon" Text="&#xE769;" FontFamily="Segoe MDL2 Assets" FontSize="15" Foreground="#FF262425" /></Button>
+                                <Button Grid.Column="4" Style="{StaticResource MusicControlButton}" ToolTip="下一首" Click="MusicNextButton_OnClick"><TextBlock Text="&#xE893;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#FFF2F0EC" /></Button>
+                                <Button Grid.Column="5" Style="{StaticResource MusicControlButton}" ToolTip="静音" Click="MusicMuteButton_OnClick"><TextBlock x:Name="MusicMuteIcon" Text="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="14" Foreground="#FFF2F0EC" /></Button>
+                                <Slider x:Name="MusicProgressSlider" Style="{StaticResource MusicProgressSlider}" Grid.Column="7" Minimum="0" Maximum="1" Value="0" Margin="16,0,48,0" VerticalAlignment="Center" IsEnabled="False" PreviewMouseLeftButtonDown="MusicProgressSlider_OnPreviewMouseLeftButtonDown" PreviewMouseLeftButtonUp="MusicProgressSlider_OnPreviewMouseLeftButtonUp" />
+                                <TextBlock x:Name="MusicDurationText" Grid.Column="7" Text="0:00" Foreground="#FFC5C7CB" FontSize="11" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                    <Border x:Name="MusicRenameOverlay" Grid.RowSpan="2" Visibility="Collapsed" Background="#A6000000">
+                        <Border Width="360" Padding="22" Background="#FF282A2F" BorderBrush="#FF555961" BorderThickness="1" CornerRadius="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <StackPanel>
+                                <TextBlock Text="修改歌曲名称" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="18" FontWeight="Bold" />
+                                <TextBox x:Name="MusicTitleBox" Margin="0,16,0,0" MaxLength="60" Padding="10,7" Background="#FF181A1F" BorderBrush="#FF5A5D66" Foreground="#FFF2F0EC" FontFamily="Microsoft YaHei UI" FontSize="14" />
+                                <StackPanel Margin="0,18,0,0" HorizontalAlignment="Right" Orientation="Horizontal">
+                                    <Button Padding="14,6" Background="Transparent" BorderBrush="#FF5A5D66" Foreground="#FFF2F0EC" Cursor="Hand" Content="取消" Click="CancelMusicRename_OnClick" />
+                                    <Button Margin="8,0,0,0" Padding="14,6" Background="#FFE8DED4" BorderBrush="#FFE8DED4" Foreground="#FF272526" Cursor="Hand" Content="保存" Click="SaveMusicRename_OnClick" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                    </Border>
+                </Grid>
             </Grid>
         </Grid>
     </Border>

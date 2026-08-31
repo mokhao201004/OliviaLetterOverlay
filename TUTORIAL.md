@@ -5,7 +5,7 @@
 ## 1. 下载并启动
 
 1. 打开 [最新版本发布页](https://github.com/sron0404/OliviaLetterOverlay/releases/latest)。
-2. 下载 `OliviaLetterOverlay-1.1-win-x64.zip`。
+2. 下载 `OliviaLetterOverlay-1.2-win-x64.zip`。
 3. 右键压缩包，选择“全部解压缩”，不要直接在压缩包里双击运行。
 4. 打开解压后的文件夹，双击 `OliviaLetterOverlay.exe`。
 
@@ -13,7 +13,19 @@
 
 平时只需要双击根目录的 `OliviaLetterOverlay.exe`，不需要运行任何脚本。想让信箱在游戏出现时自动弹出，按压缩包根目录的 [`脚本说明.txt`](脚本说明.txt) 操作。
 
-如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.1.txt` 里的哈希值。
+如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.2.txt` 里的哈希值。
+
+已有旧版的用户可以下载 Releases 里的专用升级包 `OliviaLetterOverlay-1.2-upgrade-win-x64.zip`，解压后双击根目录的 `升级 OliviaLetterOverlay.cmd`，不需要重新配置数据。
+
+## 1.1 已有旧版如何升级
+
+1. 先退出旧版信箱；如果开过伴随模式，也先关闭旧版后台进程。
+2. 下载并解压专用升级包 `OliviaLetterOverlay-1.2-upgrade-win-x64.zip`，不要在压缩包里直接运行。
+3. 双击升级包根目录的 `升级 OliviaLetterOverlay.cmd`，等待窗口提示安装完成。
+4. 安装器会自动覆盖程序文件并更新快捷方式；数据目录 `%LOCALAPPDATA%\\OliviaLetterOverlay` 不会被删除，角色、信件、记忆、人设、API Key 会继续保留。
+5. 安装完成后从开始菜单或安装目录启动新版程序，确认无误后再删除旧文件夹。
+
+如果之前只是解压后直接运行，没有使用安装器，仍建议用新包里的 `Install.cmd` 安装一次，这样游戏伴随启动也会同步更新。
 
 ## 2. 第一次配置 AI
 

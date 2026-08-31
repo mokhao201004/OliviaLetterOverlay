@@ -64,6 +64,11 @@ public partial class ApiSettingsWindow : Window
         UpdateTtsSetupStatus(ttsPreferences);
         var stylePreferences = StylePreferencesStore.Load();
         StyleMemoryLimitBox.Text = stylePreferences.StyleMemoryLimit.ToString();
+        MemoryLimitBox.Text = MemoryPreferencesStore.Load().MemoryLimit.ToString();
+        var conversationPreferences = ConversationPreferencesStore.Load();
+        ReplyHistoryDaysBox.Text = conversationPreferences.ReplyHistoryDays.ToString();
+        CompressionIntervalBox.Text = conversationPreferences.CompressionIntervalLetters.ToString();
+        MusicFolderBox.Text = MusicPreferencesStore.Load().FolderPath;
         UpdateProviderPanels();
         Loaded += (_, _) => ProviderCombo.Focus();
     }
@@ -176,6 +181,18 @@ public partial class ApiSettingsWindow : Window
         if (dialog.ShowDialog(this) == true)
         {
             TtsRootBox.Text = dialog.FolderName;
+        }
+    }
+
+    private void MusicFolderBrowseButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog
+        {
+            Title = "选择本地音乐根目录（每首歌放在一个一级子文件夹内）",
+        };
+        if (dialog.ShowDialog(this) == true)
+        {
+            MusicFolderBox.Text = dialog.FolderName;
         }
     }
 
@@ -389,6 +406,42 @@ public partial class ApiSettingsWindow : Window
         }
 
         StylePreferencesStore.Save(new StylePreferences { StyleMemoryLimit = styleLimit });
+
+        if (!int.TryParse(MemoryLimitBox.Text.Trim(), out var memoryLimit) || memoryLimit < -1)
+        {
+            StatusText.Text = "记忆保留条数需为 -1 或非负整数；-1 不限量，0 不保存。";
+            return;
+        }
+
+        MemoryPreferencesStore.Save(new MemoryPreferences { MemoryLimit = memoryLimit });
+
+        if (!int.TryParse(ReplyHistoryDaysBox.Text.Trim(), out var replyHistoryDays) || replyHistoryDays < -1)
+        {
+            StatusText.Text = "回信历史天数需为 -1 或非负整数；-1 不限天数，0 不带历史。";
+            return;
+        }
+
+        if (!int.TryParse(CompressionIntervalBox.Text.Trim(), out var compressionInterval) || compressionInterval < 0)
+        {
+            StatusText.Text = "自动整理间隔需为非负整数；0 表示关闭。";
+            return;
+        }
+
+        ConversationPreferencesStore.Save(new ConversationPreferences
+        {
+            ReplyHistoryDays = replyHistoryDays,
+            CompressionIntervalLetters = compressionInterval,
+        });
+
+        try
+        {
+            MusicPreferencesStore.Save(MusicFolderBox.Text);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            StatusText.Text = exception.Message;
+            return;
+        }
 
         AiProviderStore.Save(settings);
         if (!MimoClient.IsConfigured)

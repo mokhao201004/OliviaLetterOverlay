@@ -62,6 +62,7 @@ internal static class PersonaStore
 
     public static void Save(PersonaProfile profile, string? characterId = null)
     {
+        profile.Memories = MemoryPreferencesStore.ApplyLimit(profile.Memories ?? []);
         var directory = CharacterStore.GetDataDirectory(characterId);
         Directory.CreateDirectory(directory);
         var storageFile = Path.Combine(directory, "persona-profile.json");

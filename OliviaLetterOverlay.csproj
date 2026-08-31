@@ -1,18 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Version>1.1</Version>
-    <FileVersion>1.1.0.0</FileVersion>
-    <InformationalVersion>1.1</InformationalVersion>
+    <Version>1.2</Version>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2</InformationalVersion>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>Assets\olivia.ico</ApplicationIcon>
     <DefaultItemExcludes>$(DefaultItemExcludes);obj-next\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
     <Compile Remove="tests\**\*.cs" />
     <Compile Remove="installer\**\*.cs" />
     <Compile Remove="release\**\*.cs" />
@@ -23,11 +27,16 @@
     <None Remove="Assets\letter-paper-olivia-inspired-v2.png" />
     <None Remove="Assets\sent-paper.png" />
     <None Remove="Assets\portrait-stamp.png" />
+    <None Remove="Assets\music-star-icon-reference.png" />
+    <None Remove="Assets\olivia-icon-preview.png" />
     <Resource Include="Assets\composer-paper.png" />
     <Resource Include="Assets\letter-paper.png" />
     <Resource Include="Assets\letter-paper-olivia-inspired-v2.png" />
     <Resource Include="Assets\sent-paper.png" />
     <Resource Include="Assets\portrait-stamp.png" />
+    <Resource Include="Assets\music-star-icon-reference.png" />
+    <Resource Include="Assets\olivia-icon-preview.png" />
+    <Resource Include="Assets\olivia.ico" />
     <None Include="Assets\Fonts\ChillZhuo.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Assets\Fonts\ChillZhuo-NOTICE.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

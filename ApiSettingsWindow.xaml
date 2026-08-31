@@ -144,6 +144,19 @@
                             <TextBlock Grid.Column="2" Margin="8,0,0,0" Text="最少分钟" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="12" VerticalAlignment="Center" />
                         </Grid>
                     </Border>
+                    <Border Margin="0,0,0,8" Padding="13,10" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Text="本地音乐文件夹" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                            <Grid Margin="0,8,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="76" /></Grid.ColumnDefinitions>
+                                <TextBox x:Name="MusicFolderBox" Height="31" Padding="9,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="11" VerticalContentAlignment="Center" ToolTip="留空时读取游戏缓存目录" />
+                                <Button Grid.Column="1" Height="31" Margin="7,0,0,0" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="浏览…" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="MusicFolderBrowseButton_OnClick">
+                                    <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="15" /></Style></Button.Resources>
+                                </Button>
+                            </Grid>
+                            <TextBlock Margin="1,6,0,0" Text="留空读取游戏缓存目录；可选任意音乐根目录。每个含 MP4 的一级子文件夹会显示为一首歌。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
                     <Border Margin="0,0,0,8" Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
                         <StackPanel>
                             <Expander x:Name="TtsExpander" Foreground="#FFE7E4E0">
@@ -233,13 +246,34 @@
                             </Button>
                         </Grid>
                     </Border>
+                    <Border Margin="0,0,0,8" Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
+                        <StackPanel>
+                            <TextBlock Text="回信上下文与自动整理" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
+                            <Grid Margin="0,7,0,0">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /><ColumnDefinition Width="8" /><ColumnDefinition Width="*" /><ColumnDefinition Width="70" /></Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="带入最近几天" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    <TextBox x:Name="ReplyHistoryDaysBox" Height="29" Margin="0,4,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" ToolTip="-1 = 不限天数，0 = 不带历史，正整数 = 最近几天" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" />
+                                <StackPanel Grid.Column="3">
+                                    <TextBlock Text="每几封自动整理" Foreground="#FFB9BBC1" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                    <TextBox x:Name="CompressionIntervalBox" Height="29" Margin="0,4,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" ToolTip="0 = 关闭；正整数 = 每多少封用户信整理一次" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="4" Margin="8,18,0,0" Text="封" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" VerticalAlignment="Center" />
+                            </Grid>
+                            <TextBlock Margin="1,6,0,0" Text="后台会把较早往来压缩成摘要，并提炼重要事实；关闭时不会自动调用 AI。" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
                     <Border Padding="13,8" Background="#FF191B20" BorderBrush="#FF3E4149" BorderThickness="1" CornerRadius="8">
                         <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="86" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="记忆库" Foreground="#FFE7E4E0" FontFamily="Microsoft YaHei UI" FontWeight="SemiBold" FontSize="13" />
-                                <TextBlock Text="查看、补充和修改后续对话会调用的记忆" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" />
+                                <TextBlock Text="查看、补充和修改后续对话会调用的记忆；-1 不限量，0 不保存" Foreground="#FF9FA3AA" FontFamily="Microsoft YaHei UI" FontSize="11" TextWrapping="Wrap" />
                             </StackPanel>
-                            <Button Width="104" Height="31" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="打开记忆库" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="OpenMemoryButton_OnClick">
+                            <TextBox x:Name="MemoryLimitBox" Grid.Column="1" Height="30" Margin="8,0,0,0" Padding="7,0" Background="#FF15171B" BorderBrush="#FF50535C" BorderThickness="1" Foreground="#FFF0EEEB" FontFamily="Consolas" FontSize="12" VerticalContentAlignment="Center" ToolTip="记忆保留条数：-1 = 不限量，0 = 不保存，正整数 = 最多保存条数" />
+                            <Button Grid.Column="2" Width="104" Height="31" Margin="8,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Center" Background="#FF34363D" BorderBrush="#FF565963" BorderThickness="1" Foreground="#FFF0EEEB" Content="打开记忆库" Cursor="Hand" FontFamily="Microsoft YaHei UI" FontSize="12" Click="OpenMemoryButton_OnClick">
                                 <Button.Resources><Style TargetType="Border"><Setter Property="CornerRadius" Value="16" /></Style></Button.Resources>
                             </Button>
                         </Grid>

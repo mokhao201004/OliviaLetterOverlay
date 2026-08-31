@@ -37,6 +37,19 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _readAloudCts;
     private System.Windows.Media.MediaPlayer? _speechPlayer;
     private TextBlock? _activeSpeechLabel;
+    private bool _isMusicPageVisible;
+    private DesktopWallpaperWindow? _desktopWallpaper;
+    private MusicSongItem? _renamingMusicSong;
+    private MusicSongItem? _currentWallpaperSong;
+    private IReadOnlyList<MusicSongItem> _musicSongs = [];
+    private bool _isAdjustingMusicProgress;
+
+    private sealed class MusicSongItem(CachedSong song, string title, int number)
+    {
+        public CachedSong Song { get; } = song;
+        public string Title { get; set; } = title;
+        public int Number { get; } = number;
+    }
 
     private enum SpeechPhase
     {
@@ -102,6 +115,7 @@ public partial class MainWindow : Window
             _autoLetterTimer.Stop();
             _readAloudCts?.Cancel();
             _speechPlayer?.Close();
+            _desktopWallpaper?.Dispose();
             if (_hookSource is not null)
             {
                 UnregisterHotKey(_hookSource.Handle, HotKeyId);
@@ -123,9 +137,9 @@ public partial class MainWindow : Window
         UserStyleStore.MigrateLegacyEntries(_characterId);
         CharacterButton.Content = $"角色：{character.Name} ▾";
         CharacterButton.ToolTip = $"当前角色：{character.Name}；点击切换角色与独立记忆";
-        ComposeTitleText.Text = $"给{character.Name}写信";
         HelloItem.Visibility = WelcomeItem.Visibility = character.Id == CharacterStore.DefaultId ? Visibility.Visible : Visibility.Collapsed;
         ReloadSavedLetters();
+        ConversationCompressionService.Queue(_characterId, _savedLetters);
         if (_savedLetters.Count > 0)
         {
             var newest = _savedLetters[0];
@@ -354,6 +368,7 @@ public partial class MainWindow : Window
             }
 
             _ = MimoClient.LearnUserStyleAsync(letter.Draft, args.CharacterId);
+            ConversationCompressionService.Queue(args.CharacterId, LetterStore.Load(args.CharacterId));
 
             if (_characterId != args.CharacterId)
             {
@@ -426,6 +441,195 @@ public partial class MainWindow : Window
         {
             _isSettingsOpen = false;
         }
+    }
+
+    private void MusicButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_isMusicPageVisible)
+        {
+            return;
+        }
+
+        var songs = CachedMusicLibrary.Load();
+        var customTitles = MusicTitleStore.Load();
+        var songItems = songs
+            .Select((song, index) => new MusicSongItem(song,
+                customTitles.GetValueOrDefault(song.FolderName, song.ChineseTitle ?? $"未命名歌曲 {index + 1}"), index + 1))
+            .ToArray();
+        _musicSongs = songItems;
+        MusicSongsList.ItemsSource = songItems;
+        WallpaperSongsList.ItemsSource = songItems;
+        MusicSongScrollViewer.Visibility = songItems.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        MusicEmptyText.Visibility = songItems.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        WallpaperListTitleText.Text = $"壁纸音乐  {songItems.Length}";
+
+        _isMusicPageVisible = true;
+        PageTitleText.Text = "音乐";
+        MailboxPanel.Visibility = Visibility.Collapsed;
+        LetterPanel.Visibility = Visibility.Collapsed;
+        MusicPage.Visibility = Visibility.Visible;
+    }
+
+    private void MailboxRailButton_OnClick(object sender, RoutedEventArgs e) => ShowMailboxPage();
+
+    private void MusicSongButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as Button)?.Tag is not MusicSongItem item)
+        {
+            return;
+        }
+
+        PlayMusicSong(item);
+    }
+
+    private void PlayMusicSong(MusicSongItem item)
+    {
+        if (_desktopWallpaper is null)
+        {
+            _desktopWallpaper = new DesktopWallpaperWindow();
+            _desktopWallpaper.PlaybackStateChanged += DesktopWallpaper_OnPlaybackStateChanged;
+        }
+
+        _desktopWallpaper.PlayWallpaper(item.Song.PickRandomClip());
+        _currentWallpaperSong = item;
+        CurrentWallpaperText.Text = item.Title;
+        MusicProgressSlider.IsEnabled = false;
+        MusicProgressSlider.Value = 0;
+        MusicElapsedText.Text = "0:00";
+        MusicDurationText.Text = "0:00";
+        MusicPlayPauseIcon.Text = "\uE769";
+    }
+
+    private void DesktopWallpaper_OnPlaybackStateChanged(object? sender, WallpaperPlaybackState state)
+    {
+        if (_isAdjustingMusicProgress)
+        {
+            return;
+        }
+
+        MusicProgressSlider.Maximum = Math.Max(1, state.Duration.TotalSeconds);
+        MusicProgressSlider.Value = Math.Min(MusicProgressSlider.Maximum, Math.Max(0, state.Position.TotalSeconds));
+        MusicProgressSlider.IsEnabled = state.Duration > TimeSpan.Zero;
+        MusicElapsedText.Text = FormatMusicTime(state.Position);
+        MusicDurationText.Text = FormatMusicTime(state.Duration);
+        MusicPlayPauseIcon.Text = state.IsPlaying ? "\uE769" : "\uE768";
+        MusicLoopIcon.Foreground = state.IsLooping ? new SolidColorBrush(Color.FromRgb(233, 222, 212)) : new SolidColorBrush(Color.FromRgb(135, 138, 144));
+        MusicMuteIcon.Text = state.IsMuted ? "\uE74F" : "\uE767";
+    }
+
+    private void MusicPlayPauseButton_OnClick(object sender, RoutedEventArgs e) => _desktopWallpaper?.TogglePlayback();
+
+    private void MusicLoopButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_desktopWallpaper is null)
+        {
+            return;
+        }
+
+        _desktopWallpaper.ToggleLooping();
+    }
+
+    private void MusicPreviousButton_OnClick(object sender, RoutedEventArgs e) => StepMusicSong(-1);
+
+    private void MusicNextButton_OnClick(object sender, RoutedEventArgs e) => StepMusicSong(1);
+
+    private void StepMusicSong(int offset)
+    {
+        if (_musicSongs.Count == 0)
+        {
+            return;
+        }
+
+        var index = _currentWallpaperSong is null ? 0 : _musicSongs.ToList().IndexOf(_currentWallpaperSong);
+        if (index < 0)
+        {
+            index = 0;
+        }
+        var nextIndex = (index + offset + _musicSongs.Count) % _musicSongs.Count;
+        PlayMusicSong(_musicSongs[nextIndex]);
+    }
+
+    private void MusicMuteButton_OnClick(object sender, RoutedEventArgs e) => _desktopWallpaper?.ToggleMuted();
+
+    private void MusicProgressSlider_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _isAdjustingMusicProgress = true;
+
+    private void MusicProgressSlider_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        _isAdjustingMusicProgress = false;
+        _desktopWallpaper?.Seek(TimeSpan.FromSeconds(MusicProgressSlider.Value));
+    }
+
+    private static string FormatMusicTime(TimeSpan value) => value <= TimeSpan.Zero ? "0:00" : $"{(int)value.TotalMinutes}:{value.Seconds:D2}";
+
+    private void MusicSongContextMenu_OnOpening(object sender, ContextMenuEventArgs e)
+    {
+        if (sender is not Button { ContextMenu: { } contextMenu, Tag: MusicSongItem song })
+        {
+            return;
+        }
+
+        contextMenu.Tag = song;
+    }
+
+    private void RenameMusicSong_OnClick(object sender, RoutedEventArgs e)
+    {
+        if ((sender as MenuItem)?.Parent is not ContextMenu { Tag: MusicSongItem song })
+        {
+            return;
+        }
+
+        _renamingMusicSong = song;
+        MusicTitleBox.Text = song.Title;
+        MusicRenameOverlay.Visibility = Visibility.Visible;
+        MusicTitleBox.Focus();
+        MusicTitleBox.SelectAll();
+    }
+
+    private void SaveMusicRename_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (_renamingMusicSong is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _renamingMusicSong.Title = MusicTitleStore.Save(_renamingMusicSong.Song.FolderName, MusicTitleBox.Text);
+            MusicSongsList.Items.Refresh();
+            WallpaperSongsList.Items.Refresh();
+            if (_currentWallpaperSong == _renamingMusicSong)
+            {
+                CurrentWallpaperText.Text = $"正在作为桌面壁纸：{_renamingMusicSong.Title}";
+            }
+
+            CloseMusicRename();
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            MessageBox.Show(this, exception.Message, "无法修改歌曲名称", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void CancelMusicRename_OnClick(object sender, RoutedEventArgs e) => CloseMusicRename();
+
+    private void CloseMusicRename()
+    {
+        MusicRenameOverlay.Visibility = Visibility.Collapsed;
+        _renamingMusicSong = null;
+    }
+
+    private void ShowMailboxPage()
+    {
+        if (!_isMusicPageVisible)
+        {
+            return;
+        }
+
+        MusicPage.Visibility = Visibility.Collapsed;
+        MailboxPanel.Visibility = Visibility.Visible;
+        LetterPanel.Visibility = Visibility.Visible;
+        PageTitleText.Text = "信箱";
+        _isMusicPageVisible = false;
     }
 
     private void MailboxItem_OnClick(object sender, RoutedEventArgs e)
@@ -728,17 +932,17 @@ public partial class MainWindow : Window
         var item = new Button
         {
             Style = (Style)FindResource("MailboxItem"),
-            Margin = new Thickness(0, 4, 0, 0),
+            Margin = new Thickness(0, 3, 0, 0),
             Background = Brushes.Transparent,
             Tag = letter.Id.ToString("N"),
         };
 
-        var layout = new Grid { Margin = new Thickness(12, 0, 12, 0) };
+        var layout = new Grid { Margin = new Thickness(14, 0, 14, 0) };
         layout.Children.Add(new Border
         {
-            Width = 40,
-            Height = 40,
-            CornerRadius = new CornerRadius(6),
+            Width = 36,
+            Height = 36,
+            CornerRadius = new CornerRadius(10),
             Background = new SolidColorBrush(letter.IsReference || letter.IsAutoLetter ? Color.FromRgb(85, 122, 106) : Color.FromRgb(116, 109, 98)),
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Center,
@@ -755,7 +959,7 @@ public partial class MainWindow : Window
 
         var details = new StackPanel
         {
-            Margin = new Thickness(52, 8, 0, 0),
+            Margin = new Thickness(50, 0, 10, 0),
             VerticalAlignment = VerticalAlignment.Center,
         };
         details.Children.Add(new TextBlock
@@ -906,7 +1110,12 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (e.Key == Key.Escape)
+        if (e.Key == Key.Escape && _isMusicPageVisible)
+        {
+            e.Handled = true;
+            ShowMailboxPage();
+        }
+        else if (e.Key == Key.Escape)
         {
             Close();
         }

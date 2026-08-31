@@ -66,12 +66,25 @@ internal static class RegressionTests
                 return 0;
             }
 
+            if (args.Contains("--verify-local-music"))
+            {
+                TestCachedMusicLibrary();
+                return 0;
+            }
+
+            if (args.Contains("--verify-desktop-wallpaper"))
+            {
+                TestDesktopWallpaperHost();
+                return 0;
+            }
+
             TestCharacters();
             TestLetterTitles();
             TestRequestsAsync().GetAwaiter().GetResult();
             TestReplyResponsesAsync().GetAwaiter().GetResult();
             TestDownloadsAsync().GetAwaiter().GetResult();
             TestDiagnostics();
+            TestCachedMusicLibrary();
             TestLetterTitleControls();
             TestTtsClient();
             TestStyleMemoryMerge();
@@ -204,6 +217,44 @@ internal static class RegressionTests
         Check(repair.Count == 3, "repair messages append assistant draft and user correction");
     }
 
+    private static void TestCachedMusicLibrary()
+    {
+        var cacheRoot = Path.Combine(Path.GetTempPath(), $"olivia-music-cache-{Guid.NewGuid():N}");
+        var chineseNamedSong = Path.Combine(cacheRoot, "midi_414682_1787780606_夏夜练琴");
+        Directory.CreateDirectory(chineseNamedSong);
+        File.WriteAllBytes(Path.Combine(chineseNamedSong, "part-a.mp4"), [0, 0, 0, 0]);
+        File.WriteAllBytes(Path.Combine(chineseNamedSong, "part-b.mp4"), [0, 0, 0, 0]);
+        Directory.CreateDirectory(Path.Combine(cacheRoot, "空文件夹"));
+        try
+        {
+            var songs = CachedMusicLibrary.Load(cacheRoot);
+            Check(songs.Count == 1, "music library ignores empty folders and finds a Chinese-named song folder");
+            Check(songs[0].ChineseTitle == "夏夜练琴" && songs[0].Clips.Count == 2, "music library reads a Chinese title appended after the midi folder id");
+            Check(songs[0].PickRandomClip(new Random(7)).EndsWith(".mp4", StringComparison.OrdinalIgnoreCase), "music library randomly selects a playable clip");
+            var renamed = MusicTitleStore.Save(songs[0].FolderName, "雨夜练琴");
+            Check(renamed == "雨夜练琴" && MusicTitleStore.Load()[songs[0].FolderName] == "雨夜练琴", "custom music name is stored without renaming the cache folder");
+        }
+        finally
+        {
+            Directory.Delete(cacheRoot, recursive: true);
+        }
+    }
+
+    private static void TestDesktopWallpaperHost()
+    {
+        var wallpaper = new DesktopWallpaperWindow();
+        try
+        {
+            wallpaper.EnsureDesktopHost();
+            Check(wallpaper.IsAttachedToDesktopHost, "native wallpaper player is parented to the Windows desktop host");
+            Check(wallpaper.IsBelowDesktopIcons, "native wallpaper player stays below the Windows desktop icon layer");
+        }
+        finally
+        {
+            wallpaper.Dispose();
+        }
+    }
+
     private static void TestReplyToneGuidance()
     {
         Check(PersonaPrompt.System.Contains("先接住对方当下的情绪"), "reply prompt requires acknowledging the reader's current emotion first");
@@ -287,6 +338,11 @@ internal static class RegressionTests
 
         var unlimited = UserStyleStore.Merge(existing, "用户说话：新的观察", 0);
         Check(unlimited.Count == 3, "zero style limit keeps every observation");
+
+        var memorySource = new[] { "事实：一", "事实：二", "事实：一" };
+        Check(MemoryPreferencesStore.ApplyLimit(memorySource, 2).SequenceEqual(["事实：二", "事实：一"]), "memory limit keeps the newest configured memories without duplicates");
+        Check(MemoryPreferencesStore.ApplyLimit(memorySource, 0).Count == 0, "zero memory limit does not save memories");
+        Check(MemoryPreferencesStore.ApplyLimit(memorySource, -1).Count == 2, "negative-one memory limit keeps every memory");
 
         var deduped = UserStyleStore.Merge(existing, "用户说话：句子短，少标点", 0);
         Check(deduped.Count(item => item == "用户说话：句子短，少标点") == 1, "duplicate observation is not stored twice");
@@ -590,7 +646,7 @@ internal static class RegressionTests
             var reply = await MimoClient.GenerateReplyAsync("请写完整", []);
             Check(reply == longReply, "long reply preserves all text and the real ending");
             using var request = JsonDocument.Parse(await server.Request);
-            Check(request.RootElement.GetProperty("max_tokens").GetInt32() == 4096, "reply has enough output budget instead of 300 tokens");
+            Check(!request.RootElement.TryGetProperty("max_tokens", out _), "reply leaves output-token limit to the provider");
             Check(!request.RootElement.TryGetProperty("thinking", out _), "custom endpoints do not receive provider-specific thinking parameters");
             Check(!request.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!.Contains("120–220")
                 && !PersonaPrompt.System.Contains("180–260"), "reply prompts no longer enforce a fixed word count");
@@ -604,7 +660,7 @@ internal static class RegressionTests
             AiProviderStore.Save(settings);
             await MimoClient.GenerateProactiveLetterAsync([]);
             using var request = JsonDocument.Parse(await server.Request);
-            Check(request.RootElement.GetProperty("max_tokens").GetInt32() == 4096, provider + " proactive letters use the same output budget");
+            Check(!request.RootElement.TryGetProperty("max_tokens", out _), provider + " proactive letters leave output-token limit to the provider");
             Check(provider == "deepseek"
                 ? request.RootElement.GetProperty("thinking").GetProperty("type").GetString() == "disabled"
                 : !request.RootElement.TryGetProperty("thinking", out _) && request.RootElement.GetProperty("reasoning_effort").GetString() == "low",
@@ -660,7 +716,7 @@ internal static class RegressionTests
             catch (Exception exception) { failure = exception; }
             Check((failure is InvalidOperationException) == item.Item5, "Ollama response: " + item.Item1);
             using var request = JsonDocument.Parse(await server.Request);
-            Check(request.RootElement.GetProperty("options").GetProperty("num_predict").GetInt32() == 4096, "Ollama reply output budget is not 300");
+            Check(!request.RootElement.GetProperty("options").TryGetProperty("num_predict", out _), "Ollama reply leaves output-token limit to the provider");
         }
     }
 
