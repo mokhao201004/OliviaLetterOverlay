@@ -32,6 +32,8 @@
 
 如果电脑上已经安装过旧版，也可以直接下载专用升级包的 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`（也可双击 `升级 OliviaLetterOverlay.cmd`）。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
 
+如果发布页同时提供 `OliviaLetterUpdater-1.3-online-win-x64.exe` 和 ZIP 分卷，也可以只下载这个更新器 EXE；它会自动从 GitHub/Gitee 发布页下载升级内容。
+
 ### 已有旧版如何升级
 
 1. 先退出正在运行的信箱程序；如果开启了伴随模式，也先关闭旧版的后台进程。

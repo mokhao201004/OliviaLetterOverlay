@@ -17,6 +17,8 @@
 
 已有旧版的用户可以下载 Releases 里的专用升级包两个分卷 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`，不需要重新配置数据。
 
+如果发布页提供在线更新器 `OliviaLetterUpdater-1.3-online-win-x64.exe`，也可以只下载并运行它；更新器会自动下载升级分卷。
+
 ## 1.1 已有旧版如何升级
 
 1. 先退出旧版信箱；如果开过伴随模式，也先关闭旧版后台进程。

@@ -11,13 +11,14 @@
 - 修复播放进度条与实际音频主时钟不一致的问题，Seek 后会清理旧视频帧并重新对齐音频与视频时间轴。
 - 保留系统当前音量，不再因为开始播放而把音量突然拉高；静音、循环、上一首/下一首和歌曲自定义名称继续可用。
 - 非循环视频结束前会提前淡出，音频停止后恢复原桌面；循环播放不会在循环点重复黑场。
-- 新增自包含 `OliviaLetterUpdater.exe`，可直接一键停止旧版、覆盖安装、更新快捷方式并重新启动，不再必须手动运行 PowerShell 升级脚本。
+- 新增自包含 `OliviaLetterUpdater.exe`，可在解压包内直接一键升级；单独运行在线版更新器时，会从 GitHub/Gitee 发布页下载升级分卷后再停止旧版、覆盖安装、更新快捷方式并重新启动。
 - 桌面图标、WorkerW / SHELLDLL_DefView 层级和普通窗口显示行为保持不变，动态壁纸不使用 TopMost。
 
 ## v1.3 发布包
 
 - 提供 `OliviaLetterOverlay-1.3-win-x64-with-updater.7z.001/.002`，Windows 10/11 x64 可直接解压运行。
 - 提供 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001/.002`，覆盖程序文件但保留角色、信件、记忆、API Key 和本地音乐设置。
+- 同时提供 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip.001/.002/.003`，供在线更新器下载，所有分卷均小于 100 MB。
 - 发布包内含安装、升级、伴随启动和卸载脚本，以及 SHA256 校验文件。
 
 ## v1.2 新增与修复

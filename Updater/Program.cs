@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -9,6 +10,17 @@ internal static class Program
     private const uint MbIconInformation = 0x00000040;
     private const uint MbIconError = 0x00000010;
     private static readonly string LogPath = Path.Combine(Path.GetTempPath(), "OliviaLetterUpdater.log");
+    private static readonly string[] UpdateMirrors =
+    {
+        "https://github.com/sron0404/OliviaLetterOverlay/releases/download/v1.3/",
+        "https://gitee.com/sron0404/OliviaLetterOverlay/releases/download/v1.3/",
+    };
+    private static readonly string[] UpgradeParts =
+    {
+        "OliviaLetterOverlay-1.3-upgrade-win-x64.zip.001",
+        "OliviaLetterOverlay-1.3-upgrade-win-x64.zip.002",
+        "OliviaLetterOverlay-1.3-upgrade-win-x64.zip.003",
+    };
 
     [STAThread]
     private static int Main(string[] args)
@@ -34,6 +46,7 @@ internal static class Program
     {
         var packageRoot = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var payloadRoot = Path.Combine(packageRoot, "installer", "payload");
+        string? downloadRoot = null;
         if (!File.Exists(Path.Combine(payloadRoot, "OliviaLetterOverlay.exe")))
         {
             payloadRoot = packageRoot;
@@ -42,7 +55,8 @@ internal static class Program
         var sourceExe = Path.Combine(payloadRoot, "OliviaLetterOverlay.exe");
         if (!File.Exists(sourceExe))
         {
-            throw new FileNotFoundException("没有找到升级包内的 OliviaLetterOverlay.exe。请确认所有分卷已完整解压。", sourceExe);
+            (payloadRoot, downloadRoot) = DownloadAndExtractPackage();
+            sourceExe = Path.Combine(payloadRoot, "OliviaLetterOverlay.exe");
         }
 
         Log($"START package={packageRoot} source={payloadRoot}");
@@ -91,7 +105,100 @@ internal static class Program
         finally
         {
             TryDeleteDirectory(stageRoot);
+            if (downloadRoot is not null)
+            {
+                TryDeleteDirectory(downloadRoot);
+            }
         }
+    }
+
+    private static (string PayloadRoot, string DownloadRoot) DownloadAndExtractPackage()
+    {
+        var downloadRoot = Path.Combine(Path.GetTempPath(), "OliviaLetterOverlay-download-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(downloadRoot);
+        try
+        {
+            Log("LOCAL_PAYLOAD_MISSING downloading upgrade package");
+            using var client = new HttpClient
+            {
+                Timeout = TimeSpan.FromMinutes(10),
+            };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("OliviaLetterUpdater/1.3");
+
+            var downloadedParts = new List<string>(UpgradeParts.Length);
+            foreach (var part in UpgradeParts)
+            {
+                var target = Path.Combine(downloadRoot, part);
+                DownloadPart(client, part, target);
+                downloadedParts.Add(target);
+            }
+
+            var zipPath = Path.Combine(downloadRoot, "OliviaLetterOverlay-1.3-upgrade-win-x64.zip");
+            using (var output = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            {
+                foreach (var part in downloadedParts)
+                {
+                    using var input = new FileStream(part, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    input.CopyTo(output);
+                }
+            }
+
+            var extractRoot = Path.Combine(downloadRoot, "package");
+            ZipFile.ExtractToDirectory(zipPath, extractRoot);
+            var payloadRoot = Path.Combine(extractRoot, "installer", "payload");
+            if (!File.Exists(Path.Combine(payloadRoot, "OliviaLetterOverlay.exe")))
+            {
+                payloadRoot = extractRoot;
+            }
+
+            if (!File.Exists(Path.Combine(payloadRoot, "OliviaLetterOverlay.exe")))
+            {
+                throw new InvalidDataException("在线升级包解压后没有找到 OliviaLetterOverlay.exe。请检查发布包内容。\n详细日志：" + LogPath);
+            }
+
+            Log("DOWNLOAD_READY payload=" + payloadRoot);
+            return (payloadRoot, downloadRoot);
+        }
+        catch
+        {
+            TryDeleteDirectory(downloadRoot);
+            throw;
+        }
+    }
+
+    private static void DownloadPart(HttpClient client, string fileName, string target)
+    {
+        var errors = new List<string>();
+        foreach (var mirror in UpdateMirrors)
+        {
+            try
+            {
+                var uri = new Uri(mirror + fileName);
+                Log("DOWNLOAD_BEGIN " + uri);
+                using var response = client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();
+                if (!response.IsSuccessStatusCode)
+                {
+                    errors.Add($"{mirror} -> {(int)response.StatusCode}");
+                    continue;
+                }
+
+                using var input = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
+                using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None);
+                input.CopyTo(output);
+                Log($"DOWNLOAD_END file={fileName} bytes={new FileInfo(target).Length}");
+                return;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{mirror} -> {ex.Message}");
+                TryDeleteFile(target);
+            }
+        }
+
+        throw new IOException(
+            "无法下载升级包分卷 " + fileName +
+            "。请确认网络正常，或下载两个分卷后解压再运行更新器。\n" +
+            string.Join("\n", errors));
     }
 
     private static void StopRunningApplication()
@@ -238,6 +345,21 @@ internal static class Program
         catch (Exception ex)
         {
             Log("CLEANUP_FAILED path=" + path + " error=" + ex.Message);
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log("FILE_CLEANUP_FAILED path=" + path + " error=" + ex.Message);
         }
     }
 
