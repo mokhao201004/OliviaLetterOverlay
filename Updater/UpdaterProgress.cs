@@ -15,7 +15,6 @@ internal sealed class UpdaterProgress : IDisposable
     private const uint WsGroup = 0x00020000;
     private const uint SsLeft = 0x00000000;
     private const uint PbsSmooth = 0x01;
-    private const uint PbsMarquee = 0x08;
     private const uint WmDestroy = 0x0002;
     private const uint WmClose = 0x0010;
     private const uint WmSetFont = 0x0030;
@@ -129,7 +128,7 @@ internal sealed class UpdaterProgress : IDisposable
             0,
             "msctls_progress32",
             string.Empty,
-            WsChild | WsVisible | PbsSmooth | PbsMarquee,
+            WsChild | WsVisible | PbsSmooth,
             24,
             96,
             465,
@@ -214,12 +213,11 @@ internal sealed class UpdaterProgress : IDisposable
                 {
                     SetWindowText(_stageLabel, update.Stage);
                     SetWindowText(_detailLabel, update.Detail);
-                    SendMessage(_progressBar, PbmSetMarquee, new IntPtr(update.Marquee ? 1 : 0), new IntPtr(30));
-                    if (!update.Marquee)
-                    {
-                        SendMessage(_progressBar, PbmSetRange32, IntPtr.Zero, MakeLParam(0, Math.Max(update.Maximum, 1)));
-                        SendMessage(_progressBar, PbmSetPos, new IntPtr(Math.Clamp(update.Value, 0, Math.Max(update.Maximum, 1))), IntPtr.Zero);
-                    }
+                    SendMessage(_progressBar, PbmSetMarquee, IntPtr.Zero, IntPtr.Zero);
+                    var maximum = Math.Max(update.Maximum, 1);
+                    var value = update.Marquee ? 0 : Math.Clamp(update.Value, 0, maximum);
+                    SendMessage(_progressBar, PbmSetRange32, IntPtr.Zero, MakeLParam(0, maximum));
+                    SendMessage(_progressBar, PbmSetPos, new IntPtr(value), IntPtr.Zero);
                 }
 
                 return IntPtr.Zero;
