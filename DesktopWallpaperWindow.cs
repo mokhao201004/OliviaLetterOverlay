@@ -72,12 +72,16 @@ public sealed class DesktopWallpaperWindow : IDisposable
     private int _startupRetryCount;
     private long _startupGeneration;
     private DateTime _lastVideoPresentUtc = DateTime.MinValue;
+    private DateTime _lowVideoBufferSinceUtc = DateTime.MinValue;
     private DateTime _lastStartupWatchdogUtc = DateTime.MinValue;
     private DateTime _lastSchedulerLogUtc = DateTime.MinValue;
     private DateTime _lastAvSyncLogUtc = DateTime.MinValue;
     private DateTime _lastPerformanceLogUtc = DateTime.MinValue;
     private DateTime _lastCpuSampleUtc = DateTime.MinValue;
     private TimeSpan _lastCpuTime;
+    private int _lastGc0;
+    private int _lastGc1;
+    private int _lastGc2;
     private MonitorMetrics _monitorMetrics;
     private IntPtr _monitorHandle;
     private long _renderTickCount;
@@ -254,6 +258,10 @@ public sealed class DesktopWallpaperWindow : IDisposable
         _startupRetryCount = 0;
         _startupStopwatch = Stopwatch.StartNew();
         _lastVideoPresentUtc = DateTime.UtcNow;
+        _lowVideoBufferSinceUtc = DateTime.MinValue;
+        _lastGc0 = GC.CollectionCount(0);
+        _lastGc1 = GC.CollectionCount(1);
+        _lastGc2 = GC.CollectionCount(2);
         _lastStartupWatchdogUtc = DateTime.UtcNow;
         try
         {
@@ -704,7 +712,14 @@ public sealed class DesktopWallpaperWindow : IDisposable
                     && _decoder.Width > 0
                     && _decoder.Height > 0)
                 {
-                    _renderer.PresentFrame(preparedPixels, _decoder.Width, _decoder.Height);
+                    try
+                    {
+                        _renderer.PresentFrame(preparedPixels, _decoder.Width, _decoder.Height);
+                    }
+                    finally
+                    {
+                        _decoder.ReleaseFrame(preparedPixels);
+                    }
                     _decoder.MarkFirstFramePresented(preparedTimestamp / 10_000_000d);
                     _firstFrameReady = true;
                     _lastVideoPresentUtc = DateTime.UtcNow;
@@ -746,7 +761,14 @@ public sealed class DesktopWallpaperWindow : IDisposable
                 && _decoder.Width > 0
                 && _decoder.Height > 0)
             {
-                _renderer.PresentFrame(pixels, _decoder.Width, _decoder.Height);
+                try
+                {
+                    _renderer.PresentFrame(pixels, _decoder.Width, _decoder.Height);
+                }
+                finally
+                {
+                    _decoder.ReleaseFrame(pixels);
+                }
                 _lastVideoPresentUtc = DateTime.UtcNow;
                 var schedulerNow = DateTime.UtcNow;
                 if (schedulerNow - _lastSchedulerLogUtc >= TimeSpan.FromMilliseconds(500))
@@ -781,6 +803,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
                 CompleteEndTransition();
             }
 
+            CheckVideoBufferHealth();
             CheckVideoStall();
         }
         catch (Exception ex)
@@ -817,7 +840,16 @@ public sealed class DesktopWallpaperWindow : IDisposable
 
         _lastCpuSampleUtc = now;
         _lastCpuTime = cpuTime;
-        DiagnosticLog.Write("performance", $"CPU={cpuPercent:0.0}% VideoDecoderHardware=SourceReader-DXVA-requested SourceFPS={counters.SourceFrameRate:0.##} DecodedFPS={counters.DecodedFramesPerSecond:0.##} PresentedFPS={counters.PresentedFramesPerSecond:0.##} RenderTicks={counters.RenderTicksPerSecond:0.##} PresentCalls={counters.PresentCallsPerSecond:0.##} VideoQueueDepth={_decoder.VideoQueueDepth} DPI={_monitorMetrics.DpiX} Scaling={_monitorMetrics.ScaleX:0.##} RenderWidth={_renderer.RenderWidth} RenderHeight={_renderer.RenderHeight}");
+        var gc0 = GC.CollectionCount(0);
+        var gc1 = GC.CollectionCount(1);
+        var gc2 = GC.CollectionCount(2);
+        var gc0Delta = gc0 - _lastGc0;
+        var gc1Delta = gc1 - _lastGc1;
+        var gc2Delta = gc2 - _lastGc2;
+        _lastGc0 = gc0;
+        _lastGc1 = gc1;
+        _lastGc2 = gc2;
+        DiagnosticLog.Write("performance", $"PlaybackPerf CPU={cpuPercent:0.0}% VideoDecoderHardware=SourceReader-DXVA-requested SourceFPS={counters.SourceFrameRate:0.##} VideoDecodedFPS={counters.DecodedFramesPerSecond:0.##} VideoPresentedFPS={counters.PresentedFramesPerSecond:0.##} RenderTicks={counters.RenderTicksPerSecond:0.##} PresentCalls={counters.PresentCallsPerSecond:0.##} VideoQueueDepth={_decoder.VideoQueueDepth} AudioBufferedMs={_decoder.AudioBufferedDuration.TotalMilliseconds:0.0} ReadSampleAvgMs={counters.ReadSampleAverageMilliseconds:0.0} ReadSampleMaxMs={counters.ReadSampleMaxMilliseconds:0.0} PresentAvgMs={_renderer.LastPresentMilliseconds:0.0} PresentMaxMs={_renderer.MaxPresentMilliseconds:0.0} DroppedFrames={_decoder.GetAvSyncDiagnostics().DroppedFrames} GC0={gc0Delta} GC1={gc1Delta} GC2={gc2Delta} DPI={_monitorMetrics.DpiX} Scaling={_monitorMetrics.ScaleX:0.##} RenderWidth={_renderer.RenderWidth} RenderHeight={_renderer.RenderHeight}");
     }
 
     private void LogAvSyncIfDue()
@@ -837,7 +869,8 @@ public sealed class DesktopWallpaperWindow : IDisposable
     {
         if (_startupStopwatch is null
             || _transition.State is not WallpaperTransitionState.Preparing
-                and not WallpaperTransitionState.ResumingPrepare)
+                and not WallpaperTransitionState.ResumingPrepare
+                and not WallpaperTransitionState.Buffering)
         {
             return;
         }
@@ -867,6 +900,11 @@ public sealed class DesktopWallpaperWindow : IDisposable
             if (_transition.State == WallpaperTransitionState.ResumingPrepare)
             {
                 _decoder.PrepareResume();
+            }
+            else if (_transition.State == WallpaperTransitionState.Buffering)
+            {
+                _decoder.EnterBuffering();
+                _firstFrameReady = false;
             }
             else if (!string.IsNullOrWhiteSpace(_startupVideoPath))
             {
@@ -910,11 +948,58 @@ public sealed class DesktopWallpaperWindow : IDisposable
             return;
         }
 
-        DiagnosticLog.Write("stall", $"VIDEO_STALL stage=queue_or_decode elapsed_ms={elapsed.TotalMilliseconds:0} state={_transition.State} audio_clock={_decoder.MasterClockSeconds:0.###} last_video_pts={_decoder.PositionSeconds:0.###} queue_depth={_decoder.VideoQueueDepth}");
-        _decoder.EnterBuffering();
-        _firstFrameReady = false;
+        DiagnosticLog.Write("stall", $"VIDEO_STALL stage=queue_or_decode elapsed_ms={elapsed.TotalMilliseconds:0} state={_transition.State} media_time={_decoder.MasterClockSeconds:0.###} queue_depth={_decoder.VideoQueueDepth} audio_buffered_ms={_decoder.AudioBufferedDuration.TotalMilliseconds:0.0} last_decode_ago_ms={_decoder.LastDecodeAgeMilliseconds:0.0} last_video_present_ago_ms={elapsed.TotalMilliseconds:0.0} last_audio_submit_ago_ms={_decoder.LastAudioSubmitAgeMilliseconds:0.0} decode_stage=ReadSample render_stage=Present audio_stage=WASAPI");
+        if (!_decoder.BeginBuffering())
+        {
+            return;
+        }
+        _startupRetryCount = 0;
         _startupStopwatch = Stopwatch.StartNew();
         _transition.SetImmediate(WallpaperTransitionState.Buffering, _transition.FadeFactor);
+    }
+
+    private void CheckVideoBufferHealth()
+    {
+        if (!_decoder.IsPlaying || !_decoder.HasAudio
+            || _transition.State is not WallpaperTransitionState.Playing
+                and not WallpaperTransitionState.VideoFadeIn
+                and not WallpaperTransitionState.Resuming
+            || _decoder.EndOfStream)
+        {
+            _lowVideoBufferSinceUtc = DateTime.MinValue;
+            return;
+        }
+
+        var queueLow = _decoder.VideoQueueDepth <= 1;
+        var audioLow = _decoder.AudioBufferedDuration <= TimeSpan.FromMilliseconds(80);
+        if (!queueLow || !audioLow)
+        {
+            _lowVideoBufferSinceUtc = DateTime.MinValue;
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        if (_lowVideoBufferSinceUtc == DateTime.MinValue)
+        {
+            _lowVideoBufferSinceUtc = now;
+            return;
+        }
+
+        if (now - _lowVideoBufferSinceUtc < TimeSpan.FromMilliseconds(120))
+        {
+            return;
+        }
+
+        _lowVideoBufferSinceUtc = DateTime.MinValue;
+        if (!_decoder.BeginBuffering())
+        {
+            return;
+        }
+
+        _startupRetryCount = 0;
+        _startupStopwatch = Stopwatch.StartNew();
+        _transition.SetImmediate(WallpaperTransitionState.Buffering, _transition.FadeFactor);
+        DiagnosticLog.Write("playback", $"Buffering started low_water queue_depth={_decoder.VideoQueueDepth} audio_buffered_ms={_decoder.AudioBufferedDuration.TotalMilliseconds:0.0}");
     }
 
     private void RefreshPlaybackState()

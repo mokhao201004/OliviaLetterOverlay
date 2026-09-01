@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -23,7 +24,9 @@ internal readonly record struct VideoPerformanceCounters(
     double DecodedFramesPerSecond,
     double PresentedFramesPerSecond,
     double RenderTicksPerSecond,
-    double PresentCallsPerSecond);
+    double PresentCallsPerSecond,
+    double ReadSampleAverageMilliseconds,
+    double ReadSampleMaxMilliseconds);
 
 /// <summary>
 /// 第一阶段的 Media Foundation Source Reader 解码器。
@@ -31,10 +34,11 @@ internal readonly record struct VideoPerformanceCounters(
 /// </summary>
 internal sealed class MediaFoundationVideoDecoder : IDisposable
 {
-    private const int MaxVideoQueueDepth = 4;
+    private const int MaxVideoQueueDepth = 6;
+    private const int MinimumBufferedVideoFrames = 3;
     private const double EarlyThresholdSeconds = 0.004;
-    private const double LateThresholdSeconds = 0.040;
-    private const double AudioBufferTargetMilliseconds = 100;
+    private const double LateThresholdSeconds = 0.050;
+    private const double AudioBufferTargetMilliseconds = 150;
     private static readonly object StartupGate = new();
     private static bool _mediaFoundationStarted;
     private readonly object _commandGate = new();
@@ -69,10 +73,14 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     private readonly Stopwatch _fallbackClock = new();
     private double _lastDecodeMilliseconds;
     private double _maxDecodeMilliseconds;
+    private double _totalDecodeMilliseconds;
+    private DateTime _lastDecodeUtc = DateTime.MinValue;
+    private DateTime _lastAudioSubmitUtc = DateTime.MinValue;
+    private long _lastCounterDecoded;
+    private double _lastCounterDecodeMilliseconds;
     private double _sourceFrameRate;
     private long _decodedFrameCount;
     private long _presentedFrameCount;
-    private long _lastCounterDecoded;
     private long _lastCounterPresented;
     private long _lastCounterRenderTicks;
     private long _lastCounterPresentCalls;
@@ -104,14 +112,23 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     }
     public bool HasAudio => _audioStreamAvailable && _audioOutput is not null;
     public bool AudioClockStarted => _audioOutput?.IsClockStarted == true;
-    public bool StartupAudioReady => !HasAudio || _audioOutput?.BufferedDuration > TimeSpan.Zero;
+    public bool StartupAudioReady => !HasAudio
+        || _audioOutput?.BufferedDuration >= TimeSpan.FromMilliseconds(AudioBufferTargetMilliseconds)
+        || (_audioEndOfStream && _audioOutput?.BufferedDuration > TimeSpan.Zero);
+    public TimeSpan AudioBufferedDuration => _audioOutput?.BufferedDuration ?? TimeSpan.Zero;
+    public double LastDecodeAgeMilliseconds => _lastDecodeUtc == DateTime.MinValue
+        ? double.PositiveInfinity
+        : Math.Max(0, (DateTime.UtcNow - _lastDecodeUtc).TotalMilliseconds);
+    public double LastAudioSubmitAgeMilliseconds => _lastAudioSubmitUtc == DateTime.MinValue
+        ? double.PositiveInfinity
+        : Math.Max(0, (DateTime.UtcNow - _lastAudioSubmitUtc).TotalMilliseconds);
     public bool StartupFrameReady
     {
         get
         {
             lock (_videoQueueGate)
             {
-                return _videoQueue.Count > 0 && _videoSeekTargetSeconds <= 0;
+                return _videoQueue.Count >= MinimumBufferedVideoFrames && _videoSeekTargetSeconds <= 0;
             }
         }
     }
@@ -177,12 +194,16 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         Interlocked.Exchange(ref _presentedFrameCount, 0);
         _sourceFrameRate = 0;
         _lastCounterDecoded = 0;
+        _lastCounterDecodeMilliseconds = 0;
         _lastCounterPresented = 0;
         _lastCounterRenderTicks = 0;
         _lastCounterPresentCalls = 0;
         _lastCounterTimeUtc = DateTime.UtcNow;
         _lastDecodeMilliseconds = 0;
         _maxDecodeMilliseconds = 0;
+        _totalDecodeMilliseconds = 0;
+        _lastDecodeUtc = DateTime.MinValue;
+        _lastAudioSubmitUtc = DateTime.MinValue;
         _fallbackClock.Restart();
         ClearVideoQueue();
         DiagnosticLog.Write("startup", $"OpenSource begin file={path}");
@@ -261,6 +282,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         }
 
         var masterClock = GetMasterClockSeconds();
+        var droppedAny = false;
         lock (_videoQueueGate)
         {
             while (_videoQueue.Count > 0)
@@ -271,8 +293,10 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
                 if (deltaSeconds < -LateThresholdSeconds)
                 {
-                    _videoQueue.Dequeue();
+                    var droppedFrame = _videoQueue.Dequeue();
+                    ReturnPixelBuffer(droppedFrame.Pixels);
                     Interlocked.Increment(ref _droppedFrames);
+                    droppedAny = true;
                     continue;
                 }
 
@@ -293,6 +317,14 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 return true;
             }
 
+            if (droppedAny)
+            {
+                // A run of late-frame drops can empty the queue without ever
+                // presenting a frame.  Wake the decode thread explicitly so
+                // it cannot remain asleep after the queue fell below capacity.
+                _decodeWake.Set();
+            }
+
             return false;
         }
     }
@@ -309,7 +341,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
         lock (_videoQueueGate)
         {
-            if (_videoQueue.Count == 0 || _videoSeekTargetSeconds > 0)
+            if ((_videoQueue.Count < MinimumBufferedVideoFrames && !_videoEndOfStream) || _videoQueue.Count == 0 || _videoSeekTargetSeconds > 0)
             {
                 return false;
             }
@@ -324,6 +356,11 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         }
     }
 
+    public void ReleaseFrame(byte[] pixels)
+    {
+        ReturnPixelBuffer(pixels);
+    }
+
     public void MarkFirstFramePresented(double timestampSeconds)
     {
         _startupFramePresented = true;
@@ -333,7 +370,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
     public bool StartPreparedPlayback()
     {
-        if (!_decodePriming || !_startupFramePresented || !StartupAudioReady)
+        if (!_decodePriming || !_startupFramePresented || !StartupAudioReady || !HasMinimumBufferedFramesAfterPrime())
         {
             return false;
         }
@@ -364,6 +401,43 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         return true;
     }
 
+    private bool HasMinimumBufferedFramesAfterPrime()
+    {
+        lock (_videoQueueGate)
+        {
+            // The first prepared frame has already been rendered and removed
+            // from the queue.  Keep at least two more frames queued so startup
+            // and buffering recovery begin with three frames of total cushion.
+            return (_videoEndOfStream && _videoQueue.Count > 0)
+                || _videoQueue.Count >= MinimumBufferedVideoFrames - 1;
+        }
+    }
+
+    /// <summary>
+    /// Freeze consumption while retaining the current frame queue.  The
+    /// decode thread stays in priming mode and fills the queue until the
+    /// scheduler can resume both tracks together.
+    /// </summary>
+    public bool BeginBuffering()
+    {
+        if (_reader is null || !IsPlaying || _decodePriming)
+        {
+            return false;
+        }
+
+        var position = GetMasterClockSeconds();
+        _audioOutput?.Pause();
+        _audioOutput?.SetClockPosition(position);
+        Volatile.Write(ref _audioNeedsPriming, 1);
+        Volatile.Write(ref _audioStartGateOpen, 0);
+        Volatile.Write(ref _positionSeconds, position);
+        _decodePriming = true;
+        IsPlaying = false;
+        _decodeWake.Set();
+        DiagnosticLog.Write("playback", $"Buffering entered without flush at {position:0.###}s queue_depth={VideoQueueDepth} audio_buffered_ms={AudioBufferedDuration.TotalMilliseconds:0.0}");
+        return true;
+    }
+
     public void EnterBuffering()
     {
         if (_reader is null)
@@ -382,9 +456,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         _startupFramePresented = false;
         _decodePriming = true;
         IsPlaying = false;
+        ClearVideoQueue();
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
             _videoEndOfStream = false;
         }
 
@@ -415,9 +489,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         Volatile.Write(ref _positionSeconds, pausePosition);
         Volatile.Write(ref _presentedVideoPositionSeconds, pausePosition);
         IsPlaying = false;
+        ClearVideoQueue();
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
             _videoEndOfStream = false;
         }
 
@@ -453,9 +527,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         _audioOutput?.SetClockPosition(resumePosition);
         _audioSeekTargetSeconds = resumePosition;
         _videoSeekTargetSeconds = resumePosition;
+        ClearVideoQueue();
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
             _videoEndOfStream = false;
         }
         _decodePriming = true;
@@ -486,9 +560,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         _startupFramePresented = false;
         Volatile.Write(ref _positionSeconds, seconds);
         Volatile.Write(ref _presentedVideoPositionSeconds, seconds);
+        ClearVideoQueue();
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
             _videoEndOfStream = false;
         }
 
@@ -524,6 +598,15 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         Interlocked.Exchange(ref _decodedFrameCount, 0);
         Interlocked.Exchange(ref _presentedFrameCount, 0);
         _sourceFrameRate = 0;
+        _lastCounterDecoded = 0;
+        _lastCounterDecodeMilliseconds = 0;
+        _lastCounterPresented = 0;
+        _lastCounterRenderTicks = 0;
+        _lastCounterPresentCalls = 0;
+        _lastCounterTimeUtc = DateTime.UtcNow;
+        _lastDecodeMilliseconds = 0;
+        _maxDecodeMilliseconds = 0;
+        _totalDecodeMilliseconds = 0;
         DurationSeconds = 0;
         _path = null;
         _audioStreamAvailable = false;
@@ -534,9 +617,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         Volatile.Write(ref _audioStartGateOpen, 0);
         _decodePriming = false;
         _startupFramePresented = false;
+        ClearVideoQueue();
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
             _videoEndOfStream = false;
         }
         return true;
@@ -767,12 +850,18 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
             using var buffer = sample.ConvertToContiguousBuffer();
             buffer.Lock(out var data, out _, out var currentLength);
+            var expectedLength = checked(Width * Height * 4);
+            byte[]? pixels = null;
+            var queuedBuffer = false;
             try
             {
-                var expectedLength = checked(Width * Height * 4);
+                pixels = ArrayPool<byte>.Shared.Rent(expectedLength);
                 var copyLength = Math.Min(expectedLength, currentLength);
-                var pixels = new byte[expectedLength];
                 Marshal.Copy(data, pixels, 0, copyLength);
+                if (copyLength < expectedLength)
+                {
+                    pixels.AsSpan(copyLength, expectedLength - copyLength).Clear();
+                }
                 if (!_firstFrameLogged)
                 {
                     _firstFrameLogged = true;
@@ -796,6 +885,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                             DiagnosticLog.Write("startup", $"FirstVideoSamplePTS={presentationTime / 10_000_000d:0.###} first_frame_converted=true queue_depth={_videoQueue.Count} startup_ms={_startupStopwatch?.Elapsed.TotalMilliseconds:0.0}");
                         }
 
+                        queuedBuffer = true;
                         return true;
                     }
                 }
@@ -803,6 +893,10 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             finally
             {
                 buffer.Unlock();
+                if (!queuedBuffer && pixels is not null)
+                {
+                    ReturnPixelBuffer(pixels);
+                }
             }
         }
         finally
@@ -810,6 +904,8 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             var elapsed = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             _lastDecodeMilliseconds = elapsed;
             _maxDecodeMilliseconds = Math.Max(_maxDecodeMilliseconds, elapsed);
+            _totalDecodeMilliseconds += elapsed;
+            _lastDecodeUtc = DateTime.UtcNow;
             if (startupRead || elapsed >= 100)
             {
                 DiagnosticLog.Write("video", $"DecodeTimeMs={elapsed:0.0}");
@@ -834,9 +930,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         _audioEndOfStream = false;
         _audioSeekTargetSeconds = 0;
         _videoSeekTargetSeconds = 0;
+        ClearVideoQueue();
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
             _videoEndOfStream = false;
         }
 
@@ -860,8 +956,16 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     {
         lock (_videoQueueGate)
         {
-            _videoQueue.Clear();
+            while (_videoQueue.Count > 0)
+            {
+                ReturnPixelBuffer(_videoQueue.Dequeue().Pixels);
+            }
         }
+    }
+
+    private static void ReturnPixelBuffer(byte[] pixels)
+    {
+        ArrayPool<byte>.Shared.Return(pixels);
     }
 
     private void RequestReaderSeek(double seconds)
@@ -1071,12 +1175,20 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         {
             if (currentLength > 0 && _audioOutput is not null)
             {
-                var bytes = new byte[currentLength];
-                Marshal.Copy(data, bytes, 0, currentLength);
-                var offset = GetAudioTrimOffset(sample, timestamp100Ns, currentLength, _audioOutput.WaveFormat.BlockAlign);
-                if (offset < bytes.Length)
+                var bytes = ArrayPool<byte>.Shared.Rent(currentLength);
+                try
                 {
-                    _audioOutput.AddSamples(bytes, offset, bytes.Length - offset);
+                    Marshal.Copy(data, bytes, 0, currentLength);
+                    var offset = GetAudioTrimOffset(sample, timestamp100Ns, currentLength, _audioOutput.WaveFormat.BlockAlign);
+                    if (offset < currentLength)
+                    {
+                        _audioOutput.AddSamples(bytes, offset, currentLength - offset);
+                        _lastAudioSubmitUtc = DateTime.UtcNow;
+                    }
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(bytes);
                 }
                 if (!_audioFirstSampleLogged)
                 {
@@ -1239,11 +1351,17 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         var elapsed = Math.Max(0.001, (now - _lastCounterTimeUtc).TotalSeconds);
         var decoded = Interlocked.Read(ref _decodedFrameCount);
         var presented = Interlocked.Read(ref _presentedFrameCount);
+        var decodedDelta = decoded - _lastCounterDecoded;
+        var decodeMillisecondsDelta = _totalDecodeMilliseconds - _lastCounterDecodeMilliseconds;
         var decodedPerSecond = (decoded - _lastCounterDecoded) / elapsed;
         var presentedPerSecond = (presented - _lastCounterPresented) / elapsed;
         var renderTicksPerSecond = (renderTicks - _lastCounterRenderTicks) / elapsed;
         var presentCallsPerSecond = (presentCalls - _lastCounterPresentCalls) / elapsed;
+        var readSampleAverageMilliseconds = decodedDelta > 0
+            ? decodeMillisecondsDelta / decodedDelta
+            : _lastDecodeMilliseconds;
         _lastCounterDecoded = decoded;
+        _lastCounterDecodeMilliseconds = _totalDecodeMilliseconds;
         _lastCounterPresented = presented;
         _lastCounterRenderTicks = renderTicks;
         _lastCounterPresentCalls = presentCalls;
@@ -1253,7 +1371,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             Math.Max(0, decodedPerSecond),
             Math.Max(0, presentedPerSecond),
             Math.Max(0, renderTicksPerSecond),
-            Math.Max(0, presentCallsPerSecond));
+            Math.Max(0, presentCallsPerSecond),
+            Math.Max(0, readSampleAverageMilliseconds),
+            Math.Max(0, _maxDecodeMilliseconds));
     }
 
     private double GetMasterClockSeconds()
