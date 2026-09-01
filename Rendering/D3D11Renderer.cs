@@ -174,10 +174,21 @@ internal sealed class D3D11Renderer : IDisposable
         {
             var mapped = _context.Map(_videoTexture, 0, MapMode.WriteDiscard, Vortice.Direct3D11.MapFlags.None);
             var sourceStride = checked(width * 4);
-            var rowBytes = Math.Min(sourceStride, checked((int)mapped.RowPitch));
-            for (var y = 0; y < height; y++)
+            var destinationStride = checked((int)mapped.RowPitch);
+            if (destinationStride == sourceStride)
             {
-                Marshal.Copy(pixels, y * sourceStride, IntPtr.Add(mapped.DataPointer, checked((int)(y * mapped.RowPitch))), rowBytes);
+                // The dynamic texture is normally tightly packed for the
+                // negotiated RGB32 size.  Use one native copy in that case;
+                // keep the row-by-row fallback for drivers that add padding.
+                Marshal.Copy(pixels, 0, mapped.DataPointer, checked(sourceStride * height));
+            }
+            else
+            {
+                var rowBytes = Math.Min(sourceStride, destinationStride);
+                for (var y = 0; y < height; y++)
+                {
+                    Marshal.Copy(pixels, y * sourceStride, IntPtr.Add(mapped.DataPointer, checked(y * destinationStride)), rowBytes);
+                }
             }
 
             _context.Unmap(_videoTexture, 0);
