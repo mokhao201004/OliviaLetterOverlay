@@ -954,7 +954,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 }
                 if (!queued && VideoQueueDepth == 0)
                 {
-                    WaitForDecodeWork(cancellationToken, 8);
+                    WaitForDecodeWork(cancellationToken);
                 }
                 TryStartAudioIfReady();
             }
