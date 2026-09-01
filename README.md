@@ -22,21 +22,21 @@
 
 ## 下载与运行
 
-1. 从 Releases 下载 `OliviaLetterOverlay-1.3-win-x64.zip`。
-2. 解压到任意目录。
-3. 双击压缩包根目录的 `OliviaLetterOverlay.exe`。
+1. 从 Releases 下载完整包的 `OliviaLetterOverlay-1.3-win-x64-with-updater.7z.001` 和 `.002`。
+2. 把两个分卷放到同一目录，使用 7-Zip/NanaZip 右键 `.001` 解压到任意目录。
+3. 双击解压后根目录的 `OliviaLetterOverlay.exe`。
 
 推荐 64 位 Windows 10/11。发布包为 self-contained，通常无需额外安装 .NET 运行时。
 
 日常使用不需要运行任何脚本。想让信箱随游戏自动出现，再按 [脚本说明](脚本说明.txt) 的“二、想让信箱在游戏出现时自动弹出”操作。
 
-如果电脑上已经安装过旧版，也可以直接下载专用升级包 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，解压后双击根目录的 `OliviaLetterUpdater.exe`（也可双击 `升级 OliviaLetterOverlay.cmd`）。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
+如果电脑上已经安装过旧版，也可以直接下载专用升级包的 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`（也可双击 `升级 OliviaLetterOverlay.cmd`）。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
 
 ### 已有旧版如何升级
 
 1. 先退出正在运行的信箱程序；如果开启了伴随模式，也先关闭旧版的后台进程。
-2. 下载并解压专用升级包 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，不要直接在压缩包里运行。
-3. 双击升级包根目录的 `升级 OliviaLetterOverlay.cmd`，等待安装窗口显示完成。
+2. 下载专用升级包的两个分卷，放在同一目录后右键 `.001` 全部解压，不要直接在压缩包里运行。
+3. 双击升级包根目录的 `OliviaLetterUpdater.exe`，等待提示升级完成。
 4. 安装脚本会覆盖程序文件、更新快捷方式和伴随启动配置；角色、信件、记忆、人设、API Key 等数据保存在 `%LOCALAPPDATA%\\OliviaLetterOverlay`，不会被覆盖。
 5. 安装完成后，从开始菜单快捷方式或安装目录启动新版 `OliviaLetterOverlay.exe`。确认新版正常后，旧的解压文件夹可以自行删除。
 

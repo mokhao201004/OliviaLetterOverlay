@@ -5,15 +5,15 @@ Olivia Letter 信箱使用教程
 【1. 下载并启动】
 
 1. 打开 最新版本发布页：https://github.com/sron0404/OliviaLetterOverlay/releases/latest。
-2. 下载 OliviaLetterOverlay-1.3-win-x64.zip。
-3. 右键压缩包，选择“全部解压缩”，不要直接在压缩包里双击运行。
+2. 下载完整包的 OliviaLetterOverlay-1.3-win-x64-with-updater.7z.001 和 .002。
+3. 把两个分卷放在同一目录，右键 .001 用 7-Zip/NanaZip 解压，不要直接在压缩包里双击运行。
 4. 打开解压后的文件夹，双击 OliviaLetterOverlay.exe。
 
 推荐使用 64 位 Windows 10/11。发布包自带运行时，通常不需要另外安装 .NET。
 
 平时只需要双击压缩包根目录的 OliviaLetterOverlay.exe，不需要运行任何脚本。想让信箱在游戏出现时自动弹出，请看压缩包根目录的 脚本说明.txt。
 
-如果想校验下载是否完整，可以核对 SHA256SUMS-v1.3.txt 里的哈希值。
+如果想校验下载是否完整，可以核对分卷校验文件里的 SHA256 哈希值。
 
 【2. 第一次配置 AI】
 
