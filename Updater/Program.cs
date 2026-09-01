@@ -197,7 +197,7 @@ internal static class Program
 
         throw new IOException(
             "无法下载升级包分卷 " + fileName +
-            "。请确认网络正常，或下载两个分卷后解压再运行更新器。\n" +
+            "。请确认网络正常，或下载全部分卷后解压再运行更新器。\n" +
             string.Join("\n", errors));
     }
 
