@@ -270,7 +270,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
                 _decoder.StopAndRelease();
             }
 
-            _decoder.Open(videoPath, IsLooping);
+            _decoder.Open(videoPath, IsLooping, _renderer.Device);
             _renderer.RenderBlack();
             _firstFrameReady = false;
             _hasVideo = true;
@@ -589,7 +589,11 @@ public sealed class DesktopWallpaperWindow : IDisposable
         DiagnosticLog.Write("wallpaper", $"WallpaperRenderWindow shown hwnd=0x{_windowHandle.ToInt64():X}");
     }
 
-    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => RequestMonitorRefresh();
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e)
+    {
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.DesktopMonitor");
+        RequestMonitorRefresh();
+    }
 
     private void RequestMonitorRefresh()
     {
@@ -598,6 +602,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
             return;
         }
 
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.DesktopMonitor");
         var dispatcher = System.Windows.Application.Current?.Dispatcher;
         if (dispatcher is null || dispatcher.CheckAccess())
         {
@@ -615,6 +620,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
             return;
         }
 
+        using var monitorActivity = ThreadCpuDiagnostics.StartActivity("Olivia.DesktopMonitor");
         var metrics = DpiHelper.GetPrimaryMonitor();
         if (metrics.Handle == IntPtr.Zero)
         {
@@ -697,6 +703,11 @@ public sealed class DesktopWallpaperWindow : IDisposable
             return;
         }
 
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.UI");
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.VideoScheduler");
+        GpuPipelineDiagnostics.MarkProgress("Olivia.UI", "RenderNextFrame");
+        GpuPipelineDiagnostics.MarkProgress("Olivia.VideoScheduler", "RenderNextFrame");
+        GpuPipelineDiagnostics.MarkProgress("Olivia.Render", "RenderTick");
         Interlocked.Increment(ref _renderTickCount);
 
         try
@@ -705,20 +716,51 @@ public sealed class DesktopWallpaperWindow : IDisposable
                 or WallpaperTransitionState.ResumingPrepare
                 or WallpaperTransitionState.Buffering)
             {
-                if (_renderer.IsInitialized
-                    && !_firstFrameReady
-                    && _decoder.TryReadPreparedFrame(out var preparedPixels, out var preparedTimestamp)
-                    && preparedPixels is not null
+                byte[]? preparedPixels = null;
+                Vortice.Direct3D11.ID3D11Texture2D? preparedTexture = null;
+                uint preparedSubresource = 0;
+                long preparedTimestamp = 0;
+                bool preparedRead;
+                using (ThreadCpuDiagnostics.StartActivity("Olivia.VideoScheduler"))
+                {
+                    preparedRead = _renderer.IsInitialized && !_firstFrameReady;
+                    if (preparedRead)
+                    {
+                        preparedRead = _decoder.UsesGpuSurface
+                            ? _decoder.TryReadPreparedGpuFrame(out preparedTexture, out preparedSubresource, out preparedTimestamp)
+                            : _decoder.TryReadPreparedFrame(out preparedPixels, out preparedTimestamp);
+                    }
+                }
+
+                if (preparedRead
                     && _decoder.Width > 0
-                    && _decoder.Height > 0)
+                    && _decoder.Height > 0
+                    && (preparedPixels is not null || preparedTexture is not null))
                 {
                     try
                     {
-                        _renderer.PresentFrame(preparedPixels, _decoder.Width, _decoder.Height);
+                        if (preparedTexture is not null)
+                        {
+                            if (!_renderer.PresentGpuFrame(preparedTexture, preparedSubresource, _decoder.Width, _decoder.Height))
+                            {
+                                throw new InvalidOperationException("D3D11 VideoProcessor 无法呈现首帧。");
+                            }
+                        }
+                        else
+                        {
+                            _renderer.PresentFrame(preparedPixels!, _decoder.Width, _decoder.Height);
+                        }
                     }
                     finally
                     {
-                        _decoder.ReleaseFrame(preparedPixels);
+                        if (preparedTexture is not null)
+                        {
+                            _decoder.ReleaseGpuFrame(preparedTexture);
+                        }
+                        else if (preparedPixels is not null)
+                        {
+                            _decoder.ReleaseFrame(preparedPixels);
+                        }
                     }
                     _decoder.MarkFirstFramePresented(preparedTimestamp / 10_000_000d);
                     _firstFrameReady = true;
@@ -756,18 +798,47 @@ public sealed class DesktopWallpaperWindow : IDisposable
                 return;
             }
 
-            if (_decoder.TryReadFrame(out var pixels, out var presentedTimestamp)
-                && pixels is not null
+            byte[]? pixels = null;
+            Vortice.Direct3D11.ID3D11Texture2D? texture = null;
+            uint textureSubresource = 0;
+            long presentedTimestamp = 0;
+            bool frameRead;
+            using (ThreadCpuDiagnostics.StartActivity("Olivia.VideoScheduler"))
+            {
+                frameRead = _decoder.UsesGpuSurface
+                    ? _decoder.TryReadGpuFrame(out texture, out textureSubresource, out presentedTimestamp)
+                    : _decoder.TryReadFrame(out pixels, out presentedTimestamp);
+            }
+
+            if (frameRead
                 && _decoder.Width > 0
-                && _decoder.Height > 0)
+                && _decoder.Height > 0
+                && (pixels is not null || texture is not null))
             {
                 try
                 {
-                    _renderer.PresentFrame(pixels, _decoder.Width, _decoder.Height);
+                    if (texture is not null)
+                    {
+                        if (!_renderer.PresentGpuFrame(texture, textureSubresource, _decoder.Width, _decoder.Height))
+                        {
+                            throw new InvalidOperationException("D3D11 VideoProcessor 无法呈现视频帧。");
+                        }
+                    }
+                    else
+                    {
+                        _renderer.PresentFrame(pixels!, _decoder.Width, _decoder.Height);
+                    }
                 }
                 finally
                 {
-                    _decoder.ReleaseFrame(pixels);
+                    if (texture is not null)
+                    {
+                        _decoder.ReleaseGpuFrame(texture);
+                    }
+                    else if (pixels is not null)
+                    {
+                        _decoder.ReleaseFrame(pixels);
+                    }
                 }
                 _lastVideoPresentUtc = DateTime.UtcNow;
                 var schedulerNow = DateTime.UtcNow;
@@ -849,7 +920,8 @@ public sealed class DesktopWallpaperWindow : IDisposable
         _lastGc0 = gc0;
         _lastGc1 = gc1;
         _lastGc2 = gc2;
-        DiagnosticLog.Write("performance", $"PlaybackPerf CPU={cpuPercent:0.0}% VideoDecoderHardware=SourceReader-DXVA-requested SourceFPS={counters.SourceFrameRate:0.##} VideoDecodedFPS={counters.DecodedFramesPerSecond:0.##} VideoPresentedFPS={counters.PresentedFramesPerSecond:0.##} RenderTicks={counters.RenderTicksPerSecond:0.##} PresentCalls={counters.PresentCallsPerSecond:0.##} VideoQueueDepth={_decoder.VideoQueueDepth} AudioBufferedMs={_decoder.AudioBufferedDuration.TotalMilliseconds:0.0} ReadSampleAvgMs={counters.ReadSampleAverageMilliseconds:0.0} ReadSampleMaxMs={counters.ReadSampleMaxMilliseconds:0.0} PresentAvgMs={_renderer.LastPresentMilliseconds:0.0} PresentMaxMs={_renderer.MaxPresentMilliseconds:0.0} DroppedFrames={_decoder.GetAvSyncDiagnostics().DroppedFrames} GC0={gc0Delta} GC1={gc1Delta} GC2={gc2Delta} DPI={_monitorMetrics.DpiX} Scaling={_monitorMetrics.ScaleX:0.##} RenderWidth={_renderer.RenderWidth} RenderHeight={_renderer.RenderHeight}");
+        DiagnosticLog.Write("performance", $"PlaybackPerf CPU={cpuPercent:0.0}% VideoPipeline=MF-NV12-D3D11-or-CPU-fallback SourceFPS={counters.SourceFrameRate:0.##} VideoDecodedFPS={counters.DecodedFramesPerSecond:0.##} VideoPresentedFPS={counters.PresentedFramesPerSecond:0.##} RenderTicks={counters.RenderTicksPerSecond:0.##} PresentCalls={counters.PresentCallsPerSecond:0.##} VideoQueueDepth={_decoder.VideoQueueDepth} AudioBufferedMs={_decoder.AudioBufferedDuration.TotalMilliseconds:0.0} ReadSampleAvgMs={counters.ReadSampleAverageMilliseconds:0.0} ReadSampleMaxMs={counters.ReadSampleMaxMilliseconds:0.0} PresentAvgMs={_renderer.LastPresentMilliseconds:0.0} PresentMaxMs={_renderer.MaxPresentMilliseconds:0.0} DroppedFrames={_decoder.GetAvSyncDiagnostics().DroppedFrames} GC0={gc0Delta} GC1={gc1Delta} GC2={gc2Delta} DPI={_monitorMetrics.DpiX} Scaling={_monitorMetrics.ScaleX:0.##} RenderWidth={_renderer.RenderWidth} RenderHeight={_renderer.RenderHeight}");
+        ThreadCpuDiagnostics.Sample();
     }
 
     private void LogAvSyncIfDue()
@@ -909,7 +981,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
             else if (!string.IsNullOrWhiteSpace(_startupVideoPath))
             {
                 _decoder.StopAndRelease();
-                _decoder.Open(_startupVideoPath, IsLooping);
+                _decoder.Open(_startupVideoPath, IsLooping, _renderer.Device);
             }
 
             _firstFrameReady = false;

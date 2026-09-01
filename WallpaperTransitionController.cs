@@ -99,6 +99,8 @@ public sealed class WallpaperTransitionController : IDisposable
 
     private void Tick()
     {
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.PlaybackCoordinator");
+        using var transitionActivity = ThreadCpuDiagnostics.StartActivity("Olivia.PlaybackCoordinator");
         var progress = Math.Clamp((DateTime.UtcNow - _startedAt).TotalMilliseconds / _duration.TotalMilliseconds, 0, 1);
         var smooth = progress * progress * (3 - 2 * progress);
         FadeFactor = _from + ((_to - _from) * smooth);

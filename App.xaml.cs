@@ -15,6 +15,10 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        ThreadCpuDiagnostics.RegisterCurrentThread("Olivia.UI");
+        GpuPipelineDiagnostics.RegisterThread("Olivia.UI", "startup");
+        ThreadCpuDiagnostics.LogConfigurationOnce();
+        GpuPipelineDiagnostics.StartWatchdog();
         try
         {
             var dpiContextApplied = SetProcessDpiAwarenessContext(PerMonitorV2Context);

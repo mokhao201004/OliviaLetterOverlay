@@ -80,7 +80,11 @@ internal sealed class WasapiAudioOutput : IDisposable
             return;
         }
 
-        _buffer.AddSamples(samples, offset, count);
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.AudioOutput");
+        using (ThreadCpuDiagnostics.StartActivity("Olivia.AudioOutput"))
+        {
+            _buffer.AddSamples(samples, offset, count);
+        }
     }
 
     public void Play()
@@ -90,6 +94,7 @@ internal sealed class WasapiAudioOutput : IDisposable
             return;
         }
 
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.AudioOutput");
         _output.Play();
         if (_started)
         {
@@ -109,6 +114,7 @@ internal sealed class WasapiAudioOutput : IDisposable
             return;
         }
 
+        ThreadCpuDiagnostics.MarkWakeup("Olivia.AudioOutput");
         _output.Pause();
         DiagnosticLog.Write("audio", "PlaybackPaused=true");
     }
