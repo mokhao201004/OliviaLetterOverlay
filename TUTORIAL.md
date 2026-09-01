@@ -5,7 +5,7 @@
 ## 1. 下载并启动
 
 1. 打开 [最新版本发布页](https://github.com/sron0404/OliviaLetterOverlay/releases/latest)。
-2. 下载完整包的 `OliviaLetterOverlay-1.3-win-x64-with-updater.7z.001` 和 `.002`。
+2. 下载完整包的 `OliviaLetterOverlay-1.3.1-win-x64-with-updater.7z.001` 和 `.002`。
 3. 将两个分卷放到同一目录，右键 `.001` 用 7-Zip/NanaZip 解压，不要直接在压缩包里双击运行。
 4. 打开解压后的文件夹，双击 `OliviaLetterOverlay.exe`。
 
@@ -13,11 +13,11 @@
 
 平时只需要双击根目录的 `OliviaLetterOverlay.exe`，不需要运行任何脚本。想让信箱在游戏出现时自动弹出，按压缩包根目录的 [`脚本说明.txt`](脚本说明.txt) 操作。
 
-如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.3.txt` 里的哈希值。
+如果想校验下载是否完整，可以核对 `SHA256SUMS-v1.3.1.txt` 里的哈希值。
 
-已有旧版的用户可以下载 Releases 里的专用升级包两个分卷 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`，不需要重新配置数据。
+已有旧版的用户可以下载 Releases 里的专用升级包两个分卷 `OliviaLetterOverlay-1.3.1-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`，不需要重新配置数据。
 
-如果发布页提供在线更新器 `OliviaLetterUpdater-1.3-online-win-x64.exe`，也可以只下载并运行它；更新器会自动下载升级分卷。
+如果发布页提供在线更新器 `OliviaLetterUpdater-1.3.1-online-win-x64.exe`，也可以只下载并运行它；更新器会自动下载升级分卷。
 
 ## 1.1 已有旧版如何升级
 

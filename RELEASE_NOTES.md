@@ -1,4 +1,11 @@
-# Olivia Letter 信箱 v1.3 更新日志
+# Olivia Letter 信箱 v1.3.1 更新日志
+
+## v1.3.1 修复版
+
+- 修复 D3D11 动态纹理上传在连续行距下逐行调用 `Marshal.Copy` 的高频开销，改为每帧一次整块复制，非连续行距仍保留安全回退路径。
+- 保持现有 Media Foundation + CPU RGB32 播放链路、音频同步、Fade、桌面图标层级和稳定性不变。
+- GPU Surface、DXVA、AdvancedVideoProcessing 实验继续关闭，不引入新的硬件解码依赖。
+- 更新在线更新器地址和升级包名称至 v1.3.1，用户数据和音乐设置继续保留。
 
 ## v1.3 音乐播放重点更新
 

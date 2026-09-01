@@ -22,17 +22,17 @@
 
 ## 下载与运行
 
-1. 从 Releases 下载完整包的 `OliviaLetterOverlay-1.3-win-x64-with-updater.7z.001` 和 `.002`。
-2. 把两个分卷放到同一目录，使用 7-Zip/NanaZip 右键 `.001` 解压到任意目录。
+1. Gitee Releases 下载完整包的 `OliviaLetterOverlay-1.3.1-win-x64-with-updater.7z.001` 和 `.002`；GitHub Releases 可直接下载单文件 `OliviaLetterOverlay-1.3.1-win-x64-with-updater.7z`。
+2. Gitee 的两个分卷放到同一目录，使用 7-Zip/NanaZip 右键 `.001` 解压；GitHub 单文件直接解压到任意目录。
 3. 双击解压后根目录的 `OliviaLetterOverlay.exe`。
 
 推荐 64 位 Windows 10/11。发布包为 self-contained，通常无需额外安装 .NET 运行时。
 
 日常使用不需要运行任何脚本。想让信箱随游戏自动出现，再按 [脚本说明](脚本说明.txt) 的“二、想让信箱在游戏出现时自动弹出”操作。
 
-如果电脑上已经安装过旧版，也可以直接下载专用升级包的 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`（也可双击 `升级 OliviaLetterOverlay.cmd`）。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
+如果电脑上已经安装过旧版，也可以直接下载专用升级包的 `OliviaLetterOverlay-1.3.1-upgrade-win-x64-with-updater.7z.001` 和 `.002`，全部解压后双击根目录的 `OliviaLetterUpdater.exe`（也可双击 `升级 OliviaLetterOverlay.cmd`）。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
 
-如果发布页同时提供 `OliviaLetterUpdater-1.3-online-win-x64.exe` 和 ZIP 分卷，也可以只下载这个更新器 EXE；它会自动从 GitHub/Gitee 发布页下载升级内容。
+如果发布页同时提供 `OliviaLetterUpdater-1.3.1-online-win-x64.exe` 和 ZIP 分卷，也可以只下载这个更新器 EXE；它会优先从 Gitee、失败后再从 GitHub 发布页下载升级内容。
 
 更新器启动后会显示进度窗口，在线下载时会显示当前分卷、下载进度、解压和安装阶段。
 

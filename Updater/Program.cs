@@ -12,14 +12,14 @@ internal static class Program
     private static readonly string LogPath = Path.Combine(Path.GetTempPath(), "OliviaLetterUpdater.log");
     private static readonly string[] UpdateMirrors =
     {
-        "https://github.com/sron0404/OliviaLetterOverlay/releases/download/v1.3/",
-        "https://gitee.com/sron0404/OliviaLetterOverlay/releases/download/v1.3/",
+        "https://gitee.com/sron0404/OliviaLetterOverlay/releases/download/v1.3.1/",
+        "https://github.com/sron0404/OliviaLetterOverlay/releases/download/v1.3.1/",
     };
     private static readonly string[] UpgradeParts =
     {
-        "OliviaLetterOverlay-1.3-upgrade-win-x64.zip.001",
-        "OliviaLetterOverlay-1.3-upgrade-win-x64.zip.002",
-        "OliviaLetterOverlay-1.3-upgrade-win-x64.zip.003",
+        "OliviaLetterOverlay-1.3.1-upgrade-win-x64.zip.001",
+        "OliviaLetterOverlay-1.3.1-upgrade-win-x64.zip.002",
+        "OliviaLetterOverlay-1.3.1-upgrade-win-x64.zip.003",
     };
 
     [STAThread]
@@ -162,7 +162,7 @@ internal static class Program
             {
                 Timeout = TimeSpan.FromMinutes(10),
             };
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("OliviaLetterUpdater/1.3");
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("OliviaLetterUpdater/1.3.1");
 
             var downloadedParts = new List<string>(UpgradeParts.Length);
             for (var index = 0; index < UpgradeParts.Length; index++)
@@ -173,7 +173,7 @@ internal static class Program
                 downloadedParts.Add(target);
             }
 
-            var zipPath = Path.Combine(downloadRoot, "OliviaLetterOverlay-1.3-upgrade-win-x64.zip");
+            var zipPath = Path.Combine(downloadRoot, "OliviaLetterOverlay-1.3.1-upgrade-win-x64.zip");
             progress.Report("正在整理升级包", "正在合并下载分卷…", 91);
             using (var output = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
