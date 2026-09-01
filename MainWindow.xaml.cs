@@ -485,13 +485,21 @@ public partial class MainWindow : Window
 
     private void PlayMusicSong(MusicSongItem item)
     {
+        DiagnosticLog.Write("music", $"play request title={item.Title} clip={item.Song.Clips.FirstOrDefault()}");
+        // The letter reader uses a separate MediaPlayer.  Stop it before
+        // starting wallpaper audio so the two sessions cannot stack and make
+        // the perceived volume jump.
+        if (_speechPhase != SpeechPhase.Idle)
+        {
+            CancelReadAloud();
+        }
+
         if (_desktopWallpaper is null)
         {
             _desktopWallpaper = new DesktopWallpaperWindow();
             _desktopWallpaper.PlaybackStateChanged += DesktopWallpaper_OnPlaybackStateChanged;
         }
 
-        _desktopWallpaper.PlayWallpaper(item.Song.PickRandomClip());
         _currentWallpaperSong = item;
         CurrentWallpaperText.Text = item.Title;
         MusicProgressSlider.IsEnabled = false;
@@ -499,6 +507,7 @@ public partial class MainWindow : Window
         MusicElapsedText.Text = "0:00";
         MusicDurationText.Text = "0:00";
         MusicPlayPauseIcon.Text = "\uE769";
+        _desktopWallpaper.PlayWallpaper(item.Song.PickRandomClip());
     }
 
     private void DesktopWallpaper_OnPlaybackStateChanged(object? sender, WallpaperPlaybackState state)
@@ -519,6 +528,8 @@ public partial class MainWindow : Window
     }
 
     private void MusicPlayPauseButton_OnClick(object sender, RoutedEventArgs e) => _desktopWallpaper?.TogglePlayback();
+
+    private void MusicStopButton_OnClick(object sender, RoutedEventArgs e) => _desktopWallpaper?.StopWallpaper();
 
     private void MusicLoopButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -552,12 +563,50 @@ public partial class MainWindow : Window
 
     private void MusicMuteButton_OnClick(object sender, RoutedEventArgs e) => _desktopWallpaper?.ToggleMuted();
 
-    private void MusicProgressSlider_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e) => _isAdjustingMusicProgress = true;
+    private void MusicProgressSlider_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Slider slider || !slider.IsEnabled || slider.Maximum <= slider.Minimum)
+        {
+            return;
+        }
+
+        _isAdjustingMusicProgress = true;
+        UpdateMusicProgressFromPoint(slider, e.GetPosition(slider));
+        DiagnosticLog.Write("music", $"progress drag start value={slider.Value:0.###} point={e.GetPosition(slider)} width={slider.ActualWidth:0.###}");
+        slider.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void MusicProgressSlider_OnPreviewMouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_isAdjustingMusicProgress || e.LeftButton != MouseButtonState.Pressed || sender is not Slider slider)
+        {
+            return;
+        }
+
+        UpdateMusicProgressFromPoint(slider, e.GetPosition(slider));
+        e.Handled = true;
+    }
 
     private void MusicProgressSlider_OnPreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (sender is Slider slider)
+        {
+            UpdateMusicProgressFromPoint(slider, e.GetPosition(slider));
+            slider.ReleaseMouseCapture();
+        }
+
         _isAdjustingMusicProgress = false;
+        DiagnosticLog.Write("music", $"progress seek value={MusicProgressSlider.Value:0.###}");
         _desktopWallpaper?.Seek(TimeSpan.FromSeconds(MusicProgressSlider.Value));
+        e.Handled = true;
+    }
+
+    private static void UpdateMusicProgressFromPoint(Slider slider, Point point)
+    {
+        var width = Math.Max(1, slider.ActualWidth);
+        var ratio = Math.Clamp(point.X / width, 0, 1);
+        slider.Value = slider.Minimum + (ratio * (slider.Maximum - slider.Minimum));
     }
 
     private static string FormatMusicTime(TimeSpan value) => value <= TimeSpan.Zero ? "0:00" : $"{(int)value.TotalMinutes}:{value.Seconds:D2}";

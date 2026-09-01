@@ -14,6 +14,18 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            DiagnosticLog.Write("app.error", $"dispatcher_exception type={args.Exception.GetType().FullName} message={args.Exception.Message} stack={args.Exception.StackTrace}");
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception exception)
+            {
+                DiagnosticLog.Write("app.error", $"unhandled_exception type={exception.GetType().FullName} message={exception.Message} stack={exception.StackTrace}");
+            }
+        };
         // 单实例：开机自启与启动器包装可能同时尝试拉起，只允许一个存活。
         _singleInstanceMutex = new Mutex(true, "OliviaLetterOverlay.SingleInstance", out var isNewInstance);
         if (!isNewInstance)
@@ -24,6 +36,15 @@ public partial class App : Application
         }
 
         DiagnosticLog.Write("app", $"started version={typeof(App).Assembly.GetName().Version}");
+        try
+        {
+            var desktopDetector = new DesktopHostDetector();
+            desktopDetector.Log(desktopDetector.Capture());
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Write("desktop.detector", $"capture_failed type={exception.GetType().Name} message={exception.Message}");
+        }
         base.OnStartup(e);
     }
 }

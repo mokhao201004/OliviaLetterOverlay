@@ -78,6 +78,12 @@ internal static class RegressionTests
                 return 0;
             }
 
+            if (args.Contains("--dump-desktop-tree"))
+            {
+                DumpDesktopTree();
+                return 0;
+            }
+
             TestCharacters();
             TestLetterTitles();
             TestRequestsAsync().GetAwaiter().GetResult();
@@ -253,6 +259,18 @@ internal static class RegressionTests
         finally
         {
             wallpaper.Dispose();
+        }
+    }
+
+    private static void DumpDesktopTree()
+    {
+        var snapshot = new DesktopHostDetector().Capture();
+        Console.WriteLine($"Progman={DesktopHostDetector.Format(snapshot.Progman)} ExplorerPid={snapshot.ExplorerProcessId}");
+        Console.WriteLine($"IconHost={DesktopHostDetector.Format(snapshot.IconHost)} SHELLDLL_DefView={DesktopHostDetector.Format(snapshot.IconView)} SysListView32={DesktopHostDetector.Format(snapshot.IconList)}");
+        Console.WriteLine($"WallpaperHost={DesktopHostDetector.Format(snapshot.WallpaperHost)}");
+        foreach (var window in snapshot.Windows.OrderBy(window => window.ZOrder))
+        {
+            Console.WriteLine($"HWND={DesktopHostDetector.Format(window.Handle)} Class={window.ClassName} Parent={DesktopHostDetector.Format(window.Parent)} PID={window.ProcessId} Rect={window.Rect} Visible={window.Visible} TopLevel={window.TopLevel}");
         }
     }
 

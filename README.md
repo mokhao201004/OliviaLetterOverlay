@@ -16,12 +16,13 @@
 - 角色切换：右上角可新建或切换角色，各自保留独立的信箱、人设、记忆和主动来信设置。
 - 诊断日志：设置页和本地模型页均可导出脱敏日志，方便排查接口错误和下载停滞。
 - 游戏伴随启动：开机后台静默等待，检测到 Olivia 游戏主窗口后自动打开信箱。
+- 本地音乐桌面壁纸：Media Foundation + D3D11 输出视频，WASAPI 输出同步音频，支持淡入淡出、暂停/继续、Seek、循环、静音、上一首/下一首和进度条。
 - 信件朗读（可选）：用本地 IndexTTS-2.5 引擎把当前回信合成为 Olivia 的声音并播放，同一封信只合成一次；也可在设置里开启「收到新信后自动朗读」。
 - 个人照片邮票：发信信纸保留本地人像邮票装饰。
 
 ## 下载与运行
 
-1. 从 Releases 下载 `OliviaLetterOverlay-1.2-win-x64.zip`。
+1. 从 Releases 下载 `OliviaLetterOverlay-1.3-win-x64.zip`。
 2. 解压到任意目录。
 3. 双击压缩包根目录的 `OliviaLetterOverlay.exe`。
 
@@ -29,12 +30,12 @@
 
 日常使用不需要运行任何脚本。想让信箱随游戏自动出现，再按 [脚本说明](脚本说明.txt) 的“二、想让信箱在游戏出现时自动弹出”操作。
 
-如果电脑上已经安装过旧版，也可以直接下载专用升级包 `OliviaLetterOverlay-1.2-upgrade-win-x64.zip`，解压后双击根目录的 `升级 OliviaLetterOverlay.cmd`。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
+如果电脑上已经安装过旧版，也可以直接下载专用升级包 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，解压后双击根目录的 `升级 OliviaLetterOverlay.cmd`。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
 
 ### 已有旧版如何升级
 
 1. 先退出正在运行的信箱程序；如果开启了伴随模式，也先关闭旧版的后台进程。
-2. 下载并解压专用升级包 `OliviaLetterOverlay-1.2-upgrade-win-x64.zip`，不要直接在压缩包里运行。
+2. 下载并解压专用升级包 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，不要直接在压缩包里运行。
 3. 双击升级包根目录的 `升级 OliviaLetterOverlay.cmd`，等待安装窗口显示完成。
 4. 安装脚本会覆盖程序文件、更新快捷方式和伴随启动配置；角色、信件、记忆、人设、API Key 等数据保存在 `%LOCALAPPDATA%\\OliviaLetterOverlay`，不会被覆盖。
 5. 安装完成后，从开始菜单快捷方式或安装目录启动新版 `OliviaLetterOverlay.exe`。确认新版正常后，旧的解压文件夹可以自行删除。

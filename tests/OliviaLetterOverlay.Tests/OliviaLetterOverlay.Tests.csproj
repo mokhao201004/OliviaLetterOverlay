@@ -12,6 +12,8 @@
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <Compile Include="..\..\*.cs" Exclude="..\..\AssemblyInfo.cs" Link="Source\%(Filename)%(Extension)" />
+    <Compile Include="..\..\Desktop\*.cs" Link="Source\Desktop\%(Filename)%(Extension)" />
+    <Compile Include="..\..\Native\*.cs" Link="Source\Native\%(Filename)%(Extension)" />
     <ApplicationDefinition Include="..\..\App.xaml" Link="App.xaml" />
     <Page Include="..\..\*Window.xaml" Link="%(Filename)%(Extension)" />
     <Resource Include="..\..\Assets\*.png" Link="Assets\%(Filename)%(Extension)" />
