@@ -18,6 +18,13 @@ internal readonly record struct AvSyncDiagnostics(
     double LastDecodeMilliseconds,
     double MaxDecodeMilliseconds);
 
+internal readonly record struct VideoPerformanceCounters(
+    double SourceFrameRate,
+    double DecodedFramesPerSecond,
+    double PresentedFramesPerSecond,
+    double RenderTicksPerSecond,
+    double PresentCallsPerSecond);
+
 /// <summary>
 /// 第一阶段的 Media Foundation Source Reader 解码器。
 /// 输出 RGB32 帧给 D3D11 Renderer，避免 WMP/EVR 创建独立全屏 HWND。
@@ -62,6 +69,14 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     private readonly Stopwatch _fallbackClock = new();
     private double _lastDecodeMilliseconds;
     private double _maxDecodeMilliseconds;
+    private double _sourceFrameRate;
+    private long _decodedFrameCount;
+    private long _presentedFrameCount;
+    private long _lastCounterDecoded;
+    private long _lastCounterPresented;
+    private long _lastCounterRenderTicks;
+    private long _lastCounterPresentCalls;
+    private DateTime _lastCounterTimeUtc = DateTime.UtcNow;
     private bool _seekRequested;
     private double _pendingSeekSeconds;
 
@@ -104,6 +119,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     public int VideoQueueDepth => GetVideoQueueDepth();
     public double MasterClockSeconds => GetMasterClockSeconds();
     public double AudioPositionSeconds => _audioOutput?.PlaybackPositionSeconds ?? 0;
+    public double SourceFrameRate => _sourceFrameRate;
 
     private int _isPlaying;
 
@@ -130,6 +146,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         Volatile.Write(ref _positionSeconds, 0);
         Volatile.Write(ref _decodedVideoPositionSeconds, 0);
         Volatile.Write(ref _presentedVideoPositionSeconds, 0);
+        Interlocked.Exchange(ref _decodedFrameCount, 0);
+        Interlocked.Exchange(ref _presentedFrameCount, 0);
+        _sourceFrameRate = 0;
         DurationSeconds = 0;
         // Startup is decode-only until the first valid video frame has been
         // rendered and the audio buffer is primed.  The playback clock must
@@ -154,6 +173,14 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             _pendingSeekSeconds = 0;
         }
         Interlocked.Exchange(ref _droppedFrames, 0);
+        Interlocked.Exchange(ref _decodedFrameCount, 0);
+        Interlocked.Exchange(ref _presentedFrameCount, 0);
+        _sourceFrameRate = 0;
+        _lastCounterDecoded = 0;
+        _lastCounterPresented = 0;
+        _lastCounterRenderTicks = 0;
+        _lastCounterPresentCalls = 0;
+        _lastCounterTimeUtc = DateTime.UtcNow;
         _lastDecodeMilliseconds = 0;
         _maxDecodeMilliseconds = 0;
         _fallbackClock.Restart();
@@ -162,6 +189,8 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
         using var attributes = MediaFactory.MFCreateAttributes(4);
         attributes.Set(SourceReaderAttributeKeys.EnableVideoProcessing, true);
+        attributes.Set(SinkWriterAttributeKeys.ReadwriteEnableHardwareTransforms, true);
+        DiagnosticLog.Write("media-foundation", "HardwareTransformsRequested=true SourceReader-DXVA=default");
         _reader = MediaFactory.MFCreateSourceReaderFromURL(path, attributes);
         _reader.SetStreamSelection(SourceReaderIndex.AllStreams, false);
         _reader.SetStreamSelection(SourceReaderIndex.FirstVideoStream, true);
@@ -194,6 +223,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         MediaFactory.UnpackSize(packedSize, out var width, out var height);
         Width = checked((int)width);
         Height = checked((int)height);
+        _sourceFrameRate = TryGetFrameRate(currentType);
         try
         {
             var durationKey = new MediaAttributeKey<ulong>(PresentationDescriptionAttributeKeys.Duration);
@@ -207,7 +237,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             DiagnosticLog.Write("media-foundation", $"duration unavailable: {ex.Message}");
         }
         DiagnosticLog.Write("media-foundation", $"output {DescribeColorMetadata(currentType)} dxgiUpload=B8G8R8A8_UNORM yuvConversion=MediaFoundation color-converted={currentType.GetGUID(MediaTypeAttributeKeys.Subtype) != Nv12Subtype}");
-        DiagnosticLog.Write("media-foundation", $"opened path={path} size={Width}x{Height} output=RGB32 loop={_loop}");
+        DiagnosticLog.Write("media-foundation", $"opened path={path} size={Width}x{Height} output=RGB32 loop={_loop} source_fps={_sourceFrameRate:0.###} hardware_accelerated=dxva-requested");
         DiagnosticLog.Write("startup", $"SourceReady=true decoder_ready=true open_ms={_startupStopwatch?.Elapsed.TotalMilliseconds:0.0}");
         StartDecodeThread();
     }
@@ -256,6 +286,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 _videoQueue.Dequeue();
                 pixels = next.Pixels;
                 timestamp100Ns = next.PresentationTime100Ns;
+                Interlocked.Increment(ref _presentedFrameCount);
                 Volatile.Write(ref _positionSeconds, frameSeconds);
                 Volatile.Write(ref _presentedVideoPositionSeconds, frameSeconds);
                 _decodeWake.Set();
@@ -286,6 +317,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             var frame = _videoQueue.Dequeue();
             pixels = frame.Pixels;
             timestamp100Ns = frame.PresentationTime100Ns;
+            Interlocked.Increment(ref _presentedFrameCount);
             Volatile.Write(ref _decodedVideoPositionSeconds, frame.PresentationTime100Ns / 10_000_000d);
             _decodeWake.Set();
             return true;
@@ -489,6 +521,9 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         Volatile.Write(ref _positionSeconds, 0);
         Volatile.Write(ref _decodedVideoPositionSeconds, 0);
         Volatile.Write(ref _presentedVideoPositionSeconds, 0);
+        Interlocked.Exchange(ref _decodedFrameCount, 0);
+        Interlocked.Exchange(ref _presentedFrameCount, 0);
+        _sourceFrameRate = 0;
         DurationSeconds = 0;
         _path = null;
         _audioStreamAvailable = false;
@@ -574,7 +609,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
                 if ((!IsPlaying && !_decodePriming) || _reader is null)
                 {
-                    WaitForDecodeWork(cancellationToken, 4);
+                    WaitForDecodeWork(cancellationToken);
                     continue;
                 }
 
@@ -597,11 +632,19 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
                 if (VideoQueueDepth >= MaxVideoQueueDepth)
                 {
-                    WaitForDecodeWork(cancellationToken, 2);
+                    // The render thread signals _decodeWake after consuming a
+                    // frame.  Waiting without a polling timeout removes the
+                    // old 2 ms wake-up loop that kept laptop CPUs active even
+                    // while the bounded queue was already full.
+                    WaitForDecodeWork(cancellationToken);
                     continue;
                 }
 
-                ReadAndQueueVideoFrame(cancellationToken);
+                var queued = ReadAndQueueVideoFrame(cancellationToken);
+                if (!queued && VideoQueueDepth == 0)
+                {
+                    WaitForDecodeWork(cancellationToken, 8);
+                }
                 TryStartAudioIfReady();
             }
         }
@@ -621,7 +664,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         }
     }
 
-    private void WaitForDecodeWork(CancellationToken cancellationToken, int milliseconds)
+    private void WaitForDecodeWork(CancellationToken cancellationToken, int milliseconds = Timeout.Infinite)
     {
         try
         {
@@ -636,12 +679,12 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         }
     }
 
-    private void ReadAndQueueVideoFrame(CancellationToken cancellationToken)
+    private bool ReadAndQueueVideoFrame(CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested || _reader is null
             || (!IsPlaying && !_decodePriming))
         {
-            return;
+            return false;
         }
 
         var started = Stopwatch.GetTimestamp();
@@ -672,14 +715,14 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                     _videoEndOfStream = true;
                 }
 
-                return;
+                return false;
             }
             if (flags.HasFlag(SourceReaderFlag.StreamTick)
                 || flags.HasFlag(SourceReaderFlag.CurrentMediaTypeChanged)
                 || flags.HasFlag(SourceReaderFlag.NativeMediaTypeChanged))
             {
                 DiagnosticLog.Write("startup", $"FirstReadSample skipped non-frame flags={flags}");
-                return;
+                return false;
             }
 
             if (sample is null)
@@ -689,7 +732,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 {
                     DiagnosticLog.Write("startup", $"FirstReadSample result sample=null flags={flags}");
                 }
-                return;
+                return false;
             }
 
             if (flags.HasFlag(SourceReaderFlag.Error))
@@ -714,7 +757,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 && presentationTime + Math.Max(0, duration) <= seekTarget100Ns)
             {
                 Interlocked.Increment(ref _droppedFrames);
-                return;
+                return false;
             }
 
             if (seekTarget100Ns > 0)
@@ -745,12 +788,15 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                     if (_videoQueue.Count < MaxVideoQueueDepth)
                     {
                         _videoQueue.Enqueue(new VideoFrame(pixels, presentationTime, duration));
+                        Interlocked.Increment(ref _decodedFrameCount);
                         Volatile.Write(ref _decodedVideoPositionSeconds, presentationTime / 10_000_000d);
                         if (!_startupFirstSampleLogged)
                         {
                             _startupFirstSampleLogged = true;
                             DiagnosticLog.Write("startup", $"FirstVideoSamplePTS={presentationTime / 10_000_000d:0.###} first_frame_converted=true queue_depth={_videoQueue.Count} startup_ms={_startupStopwatch?.Elapsed.TotalMilliseconds:0.0}");
                         }
+
+                        return true;
                     }
                 }
             }
@@ -773,6 +819,8 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 DiagnosticLog.Write("stall", $"VIDEO_STALL stage=ReadSample elapsed_ms={elapsed:0.0} queue_depth={VideoQueueDepth} state={(IsPlaying ? "Playing" : (_decodePriming ? "Preparing" : "Paused"))}");
             }
         }
+
+        return false;
     }
 
     private void RestartLoop()
@@ -1185,6 +1233,29 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             _maxDecodeMilliseconds);
     }
 
+    public VideoPerformanceCounters GetPerformanceCounters(long renderTicks, long presentCalls)
+    {
+        var now = DateTime.UtcNow;
+        var elapsed = Math.Max(0.001, (now - _lastCounterTimeUtc).TotalSeconds);
+        var decoded = Interlocked.Read(ref _decodedFrameCount);
+        var presented = Interlocked.Read(ref _presentedFrameCount);
+        var decodedPerSecond = (decoded - _lastCounterDecoded) / elapsed;
+        var presentedPerSecond = (presented - _lastCounterPresented) / elapsed;
+        var renderTicksPerSecond = (renderTicks - _lastCounterRenderTicks) / elapsed;
+        var presentCallsPerSecond = (presentCalls - _lastCounterPresentCalls) / elapsed;
+        _lastCounterDecoded = decoded;
+        _lastCounterPresented = presented;
+        _lastCounterRenderTicks = renderTicks;
+        _lastCounterPresentCalls = presentCalls;
+        _lastCounterTimeUtc = now;
+        return new VideoPerformanceCounters(
+            _sourceFrameRate,
+            Math.Max(0, decodedPerSecond),
+            Math.Max(0, presentedPerSecond),
+            Math.Max(0, renderTicksPerSecond),
+            Math.Max(0, presentCallsPerSecond));
+    }
+
     private double GetMasterClockSeconds()
     {
         if (_audioOutput?.IsClockStarted == true)
@@ -1249,6 +1320,21 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             _ => subtype.ToString("D")
         };
         return $"subtype={subtypeName} yuvMatrix={TryGetEnum<VideoTransferMatrix>(type, MediaTypeAttributeKeys.YuvMatrix)} nominalRange={TryGetEnum<NominalRange>(type, MediaTypeAttributeKeys.VideoNominalRange)} primaries={TryGetEnum<VideoPrimaries>(type, MediaTypeAttributeKeys.VideoPrimaries)} transfer={TryGetEnum<VideoTransferFunction>(type, MediaTypeAttributeKeys.TransferFunction)}";
+    }
+
+    private static double TryGetFrameRate(IMFMediaType type)
+    {
+        try
+        {
+            var packed = type.GetUInt64(MediaTypeAttributeKeys.FrameRate);
+            var numerator = (uint)(packed >> 32);
+            var denominator = (uint)(packed & 0xFFFF_FFFF);
+            return denominator == 0 ? 0 : numerator / (double)denominator;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     private static Guid TryGetGuid(IMFMediaType type, Guid key)

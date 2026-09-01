@@ -1,5 +1,6 @@
 using System.Configuration;
 using System.Data;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 
@@ -14,6 +15,16 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        try
+        {
+            var dpiContextApplied = SetProcessDpiAwarenessContext(PerMonitorV2Context);
+            DiagnosticLog.Write("dpi", $"ProcessDpiAwareness=PerMonitorV2 applied={dpiContextApplied}");
+        }
+        catch (Exception exception)
+        {
+            DiagnosticLog.Write("dpi", $"ProcessDpiAwareness=PerMonitorV2 failed={exception.Message}");
+        }
+
         DispatcherUnhandledException += (_, args) =>
         {
             DiagnosticLog.Write("app.error", $"dispatcher_exception type={args.Exception.GetType().FullName} message={args.Exception.Message} stack={args.Exception.StackTrace}");
@@ -47,4 +58,9 @@ public partial class App : Application
         }
         base.OnStartup(e);
     }
+
+    private static readonly IntPtr PerMonitorV2Context = new(-4);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetProcessDpiAwarenessContext(IntPtr value);
 }

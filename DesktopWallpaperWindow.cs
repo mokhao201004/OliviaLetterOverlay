@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using OliviaLetterOverlay.Rendering;
 using OliviaLetterOverlay.Video;
 
@@ -24,6 +25,8 @@ public sealed class DesktopWallpaperWindow : IDisposable
     private const int WsExNoRedirectionBitmap = 0x00200000;
     private const uint LwaAlpha = 0x00000002;
     private const int WmProgman = 0x052C;
+    private const uint WmDisplayChange = 0x007E;
+    private const uint WmDpiChanged = 0x02E0;
     private const uint SmtoNormal = 0x0000;
     private const uint SwpNoActivate = 0x0010;
     private const uint SwpShowWindow = 0x0040;
@@ -45,6 +48,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
     private static readonly WindowProc RenderWindowProc = RenderWndProc;
     private static readonly string RenderWindowClass = $"OliviaWallpaperRender_{Environment.ProcessId}";
     private static ushort _renderWindowClassAtom;
+    private static DesktopWallpaperWindow? _activeInstance;
     private readonly MediaFoundationVideoDecoder _decoder = new();
     private readonly D3D11Renderer _renderer = new();
     private readonly DispatcherTimer _frameTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
@@ -71,6 +75,12 @@ public sealed class DesktopWallpaperWindow : IDisposable
     private DateTime _lastStartupWatchdogUtc = DateTime.MinValue;
     private DateTime _lastSchedulerLogUtc = DateTime.MinValue;
     private DateTime _lastAvSyncLogUtc = DateTime.MinValue;
+    private DateTime _lastPerformanceLogUtc = DateTime.MinValue;
+    private DateTime _lastCpuSampleUtc = DateTime.MinValue;
+    private TimeSpan _lastCpuTime;
+    private MonitorMetrics _monitorMetrics;
+    private IntPtr _monitorHandle;
+    private long _renderTickCount;
     private const int DesktopFadeOutDurationMilliseconds = 300;
     private const int VideoFadeInDurationMilliseconds = 800;
     private const int PauseVideoFadeOutDurationMilliseconds = 500;
@@ -80,6 +90,8 @@ public sealed class DesktopWallpaperWindow : IDisposable
 
     public DesktopWallpaperWindow()
     {
+        _activeInstance = this;
+        SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         _progressTimer.Tick += (_, _) => RefreshPlaybackState();
         _frameTimer.Tick += (_, _) => RenderNextFrame();
         _transition.Updated += (_, _) => SetVideoFadeFactor(_transition.FadeFactor);
@@ -423,8 +435,15 @@ public sealed class DesktopWallpaperWindow : IDisposable
         _renderParent = raisedDesktop ? _desktopIconHost : _desktopHost;
         DiagnosticLog.Write("wallpaper", $"desktop layout raised={raisedDesktop} render_parent={DescribeWindow(_renderParent)} icon_worker={DescribeWindow(_desktopHost)}");
 
-        var width = GetSystemMetrics(SmCxScreen);
-        var height = GetSystemMetrics(SmCyScreen);
+        _monitorMetrics = DpiHelper.GetPrimaryMonitor();
+        _monitorHandle = _monitorMetrics.Handle;
+        foreach (var monitor in DpiHelper.EnumerateMonitors())
+        {
+            DiagnosticLog.Write("dpi", $"Monitor=0x{monitor.Handle.ToInt64():X} Bounds={monitor.Left},{monitor.Top},{monitor.Right},{monitor.Bottom} Work={monitor.WorkLeft},{monitor.WorkTop},{monitor.WorkRight},{monitor.WorkBottom} Dpi={monitor.DpiX}x{monitor.DpiY} Scale={monitor.ScaleX:0.##}x{monitor.ScaleY:0.##}");
+        }
+
+        var width = _monitorMetrics.Handle == IntPtr.Zero ? GetSystemMetrics(SmCxScreen) : _monitorMetrics.Width;
+        var height = _monitorMetrics.Handle == IntPtr.Zero ? GetSystemMetrics(SmCyScreen) : _monitorMetrics.Height;
         // Use a native child HWND rather than a WinForms Form.  WinForms
         // rejects WS_EX_LAYERED for a non-top-level Form, while CreateWindowEx
         // creates the exact ownerless layered child required by the raised
@@ -503,10 +522,16 @@ public sealed class DesktopWallpaperWindow : IDisposable
         var insertAfter = raisedDesktop ? _desktopIconView : HwndBottom;
         SetWindowPos(_windowHandle, insertAfter, 0, 0, width, height, SwpNoActivate | SwpShowWindow);
         _renderer.Initialize(_windowHandle, width, height);
+        var windowDpi = DpiHelper.GetWindowDpi(_windowHandle);
+        if (windowDpi > 0)
+        {
+            _monitorMetrics = _monitorMetrics with { DpiX = windowDpi, DpiY = windowDpi };
+        }
         _renderer.RenderBlack();
         LogDesktopHierarchy("after-attach");
         DiagnosticLog.Write("wallpaper", $"desktop attach requested child={_windowHandle} render_parent={_renderParent} icon_worker={_desktopHost} previous={previousParent} actual_parent={GetParent(_windowHandle)}");
         DiagnosticLog.Write("wallpaper", $"native player child created width={width} height={height} icon_host={_desktopIconHost} icon_view={_desktopIconView} attached={IsAttachedToDesktopHost} below_icons={IsBelowDesktopIcons} layered={(GetWindowLong(_windowHandle, GwlExStyle) & WsExLayered) != 0}");
+        DiagnosticLog.Write("dpi", $"WallpaperRenderWindow physical_size={width}x{height} monitor=0x{_monitorHandle.ToInt64():X} dpi={_monitorMetrics.DpiX}x{_monitorMetrics.DpiY}");
     }
 
     public void Dispose()
@@ -517,6 +542,11 @@ public sealed class DesktopWallpaperWindow : IDisposable
         }
 
         _disposed = true;
+        SystemEvents.DisplaySettingsChanged -= OnDisplaySettingsChanged;
+        if (ReferenceEquals(_activeInstance, this))
+        {
+            _activeInstance = null;
+        }
         _progressTimer.Stop();
         _frameTimer.Stop();
         _transition.Dispose();
@@ -549,6 +579,55 @@ public sealed class DesktopWallpaperWindow : IDisposable
 
         ShowWindow(_windowHandle, SwShownoactivate);
         DiagnosticLog.Write("wallpaper", $"WallpaperRenderWindow shown hwnd=0x{_windowHandle.ToInt64():X}");
+    }
+
+    private void OnDisplaySettingsChanged(object? sender, EventArgs e) => RequestMonitorRefresh();
+
+    private void RequestMonitorRefresh()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null || dispatcher.CheckAccess())
+        {
+            RefreshMonitorBounds();
+            return;
+        }
+
+        _ = dispatcher.BeginInvoke(RefreshMonitorBounds);
+    }
+
+    private void RefreshMonitorBounds()
+    {
+        if (_disposed || _windowHandle == IntPtr.Zero || !IsWindow(_windowHandle))
+        {
+            return;
+        }
+
+        var metrics = DpiHelper.GetPrimaryMonitor();
+        if (metrics.Handle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var changed = metrics.Handle != _monitorHandle
+            || metrics.Width != _monitorMetrics.Width
+            || metrics.Height != _monitorMetrics.Height
+            || metrics.DpiX != _monitorMetrics.DpiX
+            || metrics.DpiY != _monitorMetrics.DpiY;
+        if (!changed)
+        {
+            return;
+        }
+
+        _monitorMetrics = metrics;
+        _monitorHandle = metrics.Handle;
+        SetWindowPos(_windowHandle, _desktopIconHost == _renderParent ? _desktopIconView : HwndBottom, 0, 0, metrics.Width, metrics.Height, SwpNoActivate | SwpShowWindow);
+        _renderer.Resize(metrics.Width, metrics.Height);
+        DiagnosticLog.Write("dpi", $"WallpaperRenderWindow resized physical_size={metrics.Width}x{metrics.Height} monitor=0x{metrics.Handle.ToInt64():X} dpi={metrics.DpiX}x{metrics.DpiY} display_change=true");
     }
 
     private void RestoreOriginalWallpaper()
@@ -609,6 +688,8 @@ public sealed class DesktopWallpaperWindow : IDisposable
         {
             return;
         }
+
+        Interlocked.Increment(ref _renderTickCount);
 
         try
         {
@@ -711,7 +792,32 @@ public sealed class DesktopWallpaperWindow : IDisposable
         finally
         {
             LogAvSyncIfDue();
+            LogPerformanceIfDue();
         }
+    }
+
+    private void LogPerformanceIfDue()
+    {
+        var now = DateTime.UtcNow;
+        if (now - _lastPerformanceLogUtc < TimeSpan.FromSeconds(1) || !_hasVideo)
+        {
+            return;
+        }
+
+        _lastPerformanceLogUtc = now;
+        var counters = _decoder.GetPerformanceCounters(_renderTickCount, _renderer.PresentCallCount);
+        using var cpu = Process.GetCurrentProcess();
+        var cpuTime = cpu.TotalProcessorTime;
+        var cpuPercent = 0d;
+        if (_lastCpuSampleUtc != DateTime.MinValue)
+        {
+            var wallSeconds = Math.Max(0.001, (now - _lastCpuSampleUtc).TotalSeconds);
+            cpuPercent = Math.Clamp((cpuTime - _lastCpuTime).TotalSeconds / (wallSeconds * Environment.ProcessorCount) * 100d, 0, 100);
+        }
+
+        _lastCpuSampleUtc = now;
+        _lastCpuTime = cpuTime;
+        DiagnosticLog.Write("performance", $"CPU={cpuPercent:0.0}% VideoDecoderHardware=SourceReader-DXVA-requested SourceFPS={counters.SourceFrameRate:0.##} DecodedFPS={counters.DecodedFramesPerSecond:0.##} PresentedFPS={counters.PresentedFramesPerSecond:0.##} RenderTicks={counters.RenderTicksPerSecond:0.##} PresentCalls={counters.PresentCallsPerSecond:0.##} VideoQueueDepth={_decoder.VideoQueueDepth} DPI={_monitorMetrics.DpiX} Scaling={_monitorMetrics.ScaleX:0.##} RenderWidth={_renderer.RenderWidth} RenderHeight={_renderer.RenderHeight}");
     }
 
     private void LogAvSyncIfDue()
@@ -1076,6 +1182,12 @@ public sealed class DesktopWallpaperWindow : IDisposable
 
     private static IntPtr RenderWndProc(IntPtr handle, uint message, IntPtr wParam, IntPtr lParam)
     {
+        if (message == WmDisplayChange || message == WmDpiChanged)
+        {
+            _activeInstance?.RequestMonitorRefresh();
+            return IntPtr.Zero;
+        }
+
         if (message == WmEraseBkgnd)
         {
             return new IntPtr(1);

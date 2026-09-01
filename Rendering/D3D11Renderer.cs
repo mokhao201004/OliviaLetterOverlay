@@ -32,6 +32,8 @@ internal sealed class D3D11Renderer : IDisposable
     private uint _swapWidth;
     private uint _swapHeight;
     private int _presentCount;
+    private long _renderCallCount;
+    private long _presentCallCount;
     private double _lastPresentMilliseconds;
     private double _maxPresentMilliseconds;
 
@@ -44,6 +46,10 @@ internal sealed class D3D11Renderer : IDisposable
     public bool IsInitialized => _initialized;
     public double LastPresentMilliseconds => _lastPresentMilliseconds;
     public double MaxPresentMilliseconds => _maxPresentMilliseconds;
+    public long RenderCallCount => Interlocked.Read(ref _renderCallCount);
+    public long PresentCallCount => Interlocked.Read(ref _presentCallCount);
+    public int RenderWidth => checked((int)_swapWidth);
+    public int RenderHeight => checked((int)_swapHeight);
 
     public void Initialize(IntPtr hwnd, int width, int height)
     {
@@ -89,6 +95,11 @@ internal sealed class D3D11Renderer : IDisposable
 
         width = Math.Max(1, width);
         height = Math.Max(1, height);
+        if (_swapWidth == width && _swapHeight == height)
+        {
+            return;
+        }
+
         _context.OMSetRenderTargets(Array.Empty<ID3D11RenderTargetView>(), null);
         _renderTarget?.Dispose();
         _renderTarget = null;
@@ -140,6 +151,8 @@ internal sealed class D3D11Renderer : IDisposable
             return;
         }
 
+        Interlocked.Increment(ref _renderCallCount);
+
         var clear = new Color4(0, 0, 0, 1);
         _context.ClearRenderTargetView(_renderTarget, clear);
         _context.OMSetRenderTargets(_renderTarget, null);
@@ -148,7 +161,18 @@ internal sealed class D3D11Renderer : IDisposable
         if (_videoView is not null && _vertexShader is not null && _pixelShader is not null && _sampler is not null && _fadeBuffer is not null && _fadeFactor > 0.001f)
         {
             var mapped = _context.Map(_fadeBuffer, 0, MapMode.WriteDiscard, Vortice.Direct3D11.MapFlags.None);
-            Marshal.WriteInt32(mapped.DataPointer, BitConverter.SingleToInt32Bits(_fadeFactor));
+            var constants = new[]
+            {
+                BitConverter.SingleToInt32Bits(_fadeFactor),
+                BitConverter.SingleToInt32Bits(_videoWidth),
+                BitConverter.SingleToInt32Bits(_videoHeight),
+                BitConverter.SingleToInt32Bits(_swapWidth),
+                BitConverter.SingleToInt32Bits(_swapHeight),
+                0,
+                0,
+                0,
+            };
+            Marshal.Copy(constants, 0, mapped.DataPointer, constants.Length);
             _context.Unmap(_fadeBuffer, 0);
             _context.VSSetShader(_vertexShader);
             _context.PSSetShader(_pixelShader);
@@ -164,6 +188,7 @@ internal sealed class D3D11Renderer : IDisposable
         // blocking the UI/render callback on a second VSync wait; DWM will
         // compose this child swap chain with the desktop normally.
         var presentResult = _swapChain.Present(0, PresentFlags.None);
+        Interlocked.Increment(ref _presentCallCount);
         _lastPresentMilliseconds = Stopwatch.GetElapsedTime(presentStart).TotalMilliseconds;
         _maxPresentMilliseconds = Math.Max(_maxPresentMilliseconds, _lastPresentMilliseconds);
         if (_presentCount++ == 0 || presentResult.Failure || _lastPresentMilliseconds >= 8)
@@ -201,8 +226,24 @@ internal sealed class D3D11Renderer : IDisposable
         const string pixelSource = """
             Texture2D videoTexture : register(t0);
             SamplerState linearSampler : register(s0);
-            cbuffer FadeParams : register(b0) { float fadeFactor; float3 padding; };
+            cbuffer FadeParams : register(b0) {
+                float fadeFactor;
+                float videoWidth;
+                float videoHeight;
+                float targetWidth;
+                float targetHeight;
+                float3 padding;
+            };
             float4 main(float4 position : SV_POSITION, float2 uv : TEXCOORD0) : SV_TARGET {
+                float videoAspect = videoWidth / max(videoHeight, 1.0);
+                float targetAspect = targetWidth / max(targetHeight, 1.0);
+                if (targetAspect > videoAspect) {
+                    float visibleHeight = videoAspect / targetAspect;
+                    uv.y = (uv.y - 0.5) * visibleHeight + 0.5;
+                } else {
+                    float visibleWidth = targetAspect / videoAspect;
+                    uv.x = (uv.x - 0.5) * visibleWidth + 0.5;
+                }
                 float4 color = videoTexture.Sample(linearSampler, uv);
                 return float4(color.rgb * fadeFactor, 1.0);
             }
@@ -213,7 +254,7 @@ internal sealed class D3D11Renderer : IDisposable
         _vertexShader = _device.CreateVertexShader(vertexBytecode.Span, null);
         _pixelShader = _device.CreatePixelShader(pixelBytecode.Span, null);
         _sampler = _device.CreateSamplerState(SamplerDescription.LinearClamp);
-        var bufferDescription = new BufferDescription(16, BindFlags.ConstantBuffer, ResourceUsage.Dynamic, CpuAccessFlags.Write, ResourceOptionFlags.None, 0);
+        var bufferDescription = new BufferDescription(32, BindFlags.ConstantBuffer, ResourceUsage.Dynamic, CpuAccessFlags.Write, ResourceOptionFlags.None, 0);
         _fadeBuffer = _device.CreateBuffer(bufferDescription);
     }
 

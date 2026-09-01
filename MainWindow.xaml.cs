@@ -14,6 +14,7 @@ namespace OliviaLetterOverlay;
 
 public partial class MainWindow : Window
 {
+    private const int WmDpiChanged = 0x02E0;
     private readonly string _helloReply = "你好。\n\n收到你的信了。虽然只有简单的两个字，但我还是把它读了两遍。傍晚的琴房安静得有点过分，窗外的光落在琴键上，我刚好把一张旧唱片翻到另一面。\n\n不必急着把每件事都写得很完整。你想说什么，就慢一点写给我。\n\n—— 林离";
     private const int BuiltInLetterCount = 3;
     private readonly List<SavedLetter> _savedLetters = [];
@@ -43,6 +44,7 @@ public partial class MainWindow : Window
     private MusicSongItem? _currentWallpaperSong;
     private IReadOnlyList<MusicSongItem> _musicSongs = [];
     private bool _isAdjustingMusicProgress;
+    private bool _windowLayoutRestored;
 
     private sealed class MusicSongItem(CachedSong song, string title, int number)
     {
@@ -82,6 +84,13 @@ public partial class MainWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (msg == WmDpiChanged)
+        {
+            var dpiX = unchecked((ushort)(long)lParam);
+            var dpiY = unchecked((ushort)((long)lParam >> 16));
+            DiagnosticLog.Write("dpi", $"MainWindow WM_DPICHANGED dpi={dpiX}x{dpiY} scale={dpiX / 96d:0.##}x{dpiY / 96d:0.##}");
+        }
+
         if (msg == WmHotkey && wParam.ToInt32() == HotKeyId)
         {
             ToggleMailboxVisibility();
@@ -109,7 +118,9 @@ public partial class MainWindow : Window
 
         _autoLetterTimer.Tick += AutoLetterTimer_OnTick;
         _autoLetterTimer.Start();
+        Loaded += (_, _) => RestoreWindowLayout();
         Loaded += async (_, _) => await TryGenerateAutoLetterAsync();
+        Closing += (_, _) => SaveWindowLayout();
         Closed += (_, _) =>
         {
             _autoLetterTimer.Stop();
@@ -251,6 +262,74 @@ public partial class MainWindow : Window
             _isGeneratingAutoLetter = false;
         }
     }
+
+    private void RestoreWindowLayout()
+    {
+        if (_windowLayoutRestored)
+        {
+            return;
+        }
+
+        _windowLayoutRestored = true;
+        var saved = WindowLayoutStore.Load();
+        if (saved is null)
+        {
+            return;
+        }
+
+        var width = IsFinite(saved.Width) ? Math.Max(MinWidth, saved.Width) : Width;
+        var height = IsFinite(saved.Height) ? Math.Max(MinHeight, saved.Height) : Height;
+        var left = IsFinite(saved.Left) ? saved.Left : double.NaN;
+        var top = IsFinite(saved.Top) ? saved.Top : double.NaN;
+
+        var virtualLeft = SystemParameters.VirtualScreenLeft;
+        var virtualTop = SystemParameters.VirtualScreenTop;
+        var virtualWidth = SystemParameters.VirtualScreenWidth;
+        var virtualHeight = SystemParameters.VirtualScreenHeight;
+        var visible = !double.IsNaN(left)
+            && !double.IsNaN(top)
+            && left < virtualLeft + virtualWidth
+            && left + width > virtualLeft
+            && top < virtualTop + virtualHeight
+            && top + height > virtualTop;
+        if (!visible)
+        {
+            left = virtualLeft + Math.Max(0, (virtualWidth - width) / 2);
+            top = virtualTop + Math.Max(0, (virtualHeight - height) / 2);
+        }
+
+        Width = width;
+        Height = height;
+        Left = left;
+        Top = top;
+        WindowState = saved.WindowState == WindowState.Maximized
+            ? WindowState.Maximized
+            : WindowState.Normal;
+        DiagnosticLog.Write("window", $"layout_restored width={Width:0} height={Height:0} left={Left:0} top={Top:0} state={WindowState} dpi={DpiHelper.GetWindowDpi(new WindowInteropHelper(this).Handle)}");
+    }
+
+    private void SaveWindowLayout()
+    {
+        if (!_windowLayoutRestored || WindowState == WindowState.Minimized)
+        {
+            return;
+        }
+
+        var bounds = WindowState == WindowState.Normal && !RestoreBounds.IsEmpty
+            ? RestoreBounds
+            : new Rect(Left, Top, Width, Height);
+        WindowLayoutStore.Save(new WindowLayoutState
+        {
+            Width = Math.Max(MinWidth, bounds.Width),
+            Height = Math.Max(MinHeight, bounds.Height),
+            Left = bounds.Left,
+            Top = bounds.Top,
+            WindowState = WindowState,
+        });
+        DiagnosticLog.Write("window", $"layout_saved width={bounds.Width:0} height={bounds.Height:0} left={bounds.Left:0} top={bounds.Top:0} state={WindowState}");
+    }
+
+    private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
 
     private async Task GenerateAutoLetterAsync(IReadOnlyList<SavedLetter> history, string characterId, CharacterProfile character,
         AutoLetterSettings settings, bool isAiInitiated)

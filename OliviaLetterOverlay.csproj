@@ -11,6 +11,8 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Assets\olivia.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <DefaultItemExcludes>$(DefaultItemExcludes);obj-next\**</DefaultItemExcludes>
   </PropertyGroup>
 
@@ -38,8 +40,8 @@
     <Resource Include="Assets\music-star-icon-reference.png" />
     <Resource Include="Assets\olivia-icon-preview.png" />
     <Resource Include="Assets\olivia.ico" />
-    <None Include="Assets\Fonts\ChillZhuo.ttf" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Assets\Fonts\ChillZhuo-NOTICE.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Fonts\ChillZhuo.ttf" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="Assets\Fonts\ChillZhuo-NOTICE.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 
   <ItemGroup>
