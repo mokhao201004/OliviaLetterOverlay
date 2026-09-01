@@ -15,6 +15,7 @@ internal static class DiagnosticLog
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OliviaLetterOverlay", "logs");
     private static readonly string LogPath = Path.Combine(DirectoryPath, "diagnostic.log");
     private const int MaximumLogBytes = 1024 * 1024;
+    private static readonly bool VerboseDiagnosticsEnabled = IsTruthy(Environment.GetEnvironmentVariable("OLIVIA_VERBOSE_DIAGNOSTICS"));
 
     public static void RegisterSecret(string? value)
     {
@@ -68,6 +69,11 @@ internal static class DiagnosticLog
 
     public static void Write(string area, string message)
     {
+        if (ShouldSuppressReleaseLog(area, message))
+        {
+            return;
+        }
+
         try
         {
             var line = Redact($"{DateTimeOffset.Now:O} [{area}] {message}").Replace('\r', ' ').Replace('\n', ' ');
@@ -87,6 +93,51 @@ internal static class DiagnosticLog
             // A diagnostic write must not interrupt an API call or a download.
         }
     }
+
+    private static bool ShouldSuppressReleaseLog(string area, string message)
+    {
+#if DEBUG
+        return false;
+#else
+        if (VerboseDiagnosticsEnabled)
+        {
+            return false;
+        }
+
+        if (area is "performance" or "avsync" or "scheduler")
+        {
+            return true;
+        }
+
+        if (string.Equals(area, "GPU_STAGE", StringComparison.Ordinal)
+            && !message.Contains("WARNING", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.Equals(area, "renderer", StringComparison.Ordinal)
+            && message.StartsWith("Present result=0", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (string.Equals(area, "THREAD_CPU", StringComparison.Ordinal)
+            && (message.StartsWith("[THREAD_CPU]", StringComparison.Ordinal)
+                || message.StartsWith("[THREAD_CPU_TOP]", StringComparison.Ordinal)
+                || message.StartsWith("TimerInventory", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        return false;
+#endif
+    }
+
+    private static bool IsTruthy(string? value)
+        => value is not null
+            && (value.Equals("1", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("true", StringComparison.OrdinalIgnoreCase)
+                || value.Equals("yes", StringComparison.OrdinalIgnoreCase));
 
     public static async Task<HttpResponseMessage> SendAsync(HttpClient client, HttpRequestMessage request,
         string operation, string? model = null, HttpCompletionOption completion = HttpCompletionOption.ResponseContentRead,
