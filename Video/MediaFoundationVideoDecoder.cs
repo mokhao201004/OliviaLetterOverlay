@@ -35,7 +35,7 @@ internal readonly record struct VideoPerformanceCounters(
 /// </summary>
 internal sealed class MediaFoundationVideoDecoder : IDisposable
 {
-    private const int MaxVideoQueueDepth = 6;
+    private const int MaxVideoQueueDepth = 4;
     private const int MinimumBufferedVideoFrames = 3;
     private const double EarlyThresholdSeconds = 0.004;
     private const double LateThresholdSeconds = 0.050;
