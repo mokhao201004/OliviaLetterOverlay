@@ -27,7 +27,40 @@ internal static class Program
     {
         try
         {
-            Run(args);
+            using var progress = new UpdaterProgress();
+            progress.Create();
+
+            string? installRoot = null;
+            Exception? failure = null;
+            var worker = Task.Run(() =>
+            {
+                try
+                {
+                    installRoot = Run(args, progress);
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                    Log("ERROR " + ex);
+                }
+                finally
+                {
+                    progress.Close();
+                }
+            });
+
+            progress.RunMessageLoop();
+            worker.GetAwaiter().GetResult();
+            if (failure is not null)
+            {
+                throw failure;
+            }
+
+            ShowMessage(
+                "升级完成。\n\n程序位置：" + installRoot +
+                "\n\n角色、信件、记忆、API Key 和音乐设置已保留。",
+                "Olivia Letter 信箱升级",
+                MbIconInformation);
             return 0;
         }
         catch (Exception ex)
@@ -42,11 +75,12 @@ internal static class Program
         }
     }
 
-    private static void Run(string[] args)
+    private static string Run(string[] args, UpdaterProgress progress)
     {
         var packageRoot = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var payloadRoot = Path.Combine(packageRoot, "installer", "payload");
         string? downloadRoot = null;
+        progress.Report("正在检查升级包", "正在检查本地升级文件…", 0);
         if (!File.Exists(Path.Combine(payloadRoot, "OliviaLetterOverlay.exe")))
         {
             payloadRoot = packageRoot;
@@ -55,8 +89,13 @@ internal static class Program
         var sourceExe = Path.Combine(payloadRoot, "OliviaLetterOverlay.exe");
         if (!File.Exists(sourceExe))
         {
-            (payloadRoot, downloadRoot) = DownloadAndExtractPackage();
+            progress.Report("正在下载升级包", "本地未找到升级文件，正在连接发布服务器…", 0);
+            (payloadRoot, downloadRoot) = DownloadAndExtractPackage(progress);
             sourceExe = Path.Combine(payloadRoot, "OliviaLetterOverlay.exe");
+        }
+        else
+        {
+            progress.Report("正在准备升级", "已找到本地升级文件，准备安装…", 12);
         }
 
         Log($"START package={packageRoot} source={payloadRoot}");
@@ -68,6 +107,7 @@ internal static class Program
 
         try
         {
+            progress.Report("正在准备升级", "正在校验并准备文件…", 20);
             Directory.CreateDirectory(stageRoot);
             CopyDirectory(payloadRoot, stageRoot);
             var stagedExe = Path.Combine(stageRoot, "OliviaLetterOverlay.exe");
@@ -77,10 +117,12 @@ internal static class Program
             }
 
             Log("STAGE_READY " + stagedExe);
+            progress.Report("正在安装升级", "正在停止旧版本并复制新文件…", 75);
             StopRunningApplication();
             Directory.CreateDirectory(installRoot);
             CopyDirectory(stageRoot, installRoot);
             Log("COPIED install=" + installRoot);
+            progress.Report("正在安装升级", "正在更新快捷方式…", 92);
             CreateShortcuts(installRoot);
 
             var noLaunch = args.Any(arg => string.Equals(arg, "--no-launch", StringComparison.OrdinalIgnoreCase));
@@ -96,11 +138,8 @@ internal static class Program
                 Log("LAUNCHED " + installedExe);
             }
 
-            ShowMessage(
-                "升级完成。\n\n程序位置：" + installRoot +
-                "\n\n角色、信件、记忆、API Key 和音乐设置已保留。",
-                "Olivia Letter 信箱升级",
-                MbIconInformation);
+            progress.Report("升级完成", "文件已更新，正在启动 Olivia Letter…", 100);
+            return installRoot;
         }
         finally
         {
@@ -112,7 +151,7 @@ internal static class Program
         }
     }
 
-    private static (string PayloadRoot, string DownloadRoot) DownloadAndExtractPackage()
+    private static (string PayloadRoot, string DownloadRoot) DownloadAndExtractPackage(UpdaterProgress progress)
     {
         var downloadRoot = Path.Combine(Path.GetTempPath(), "OliviaLetterOverlay-download-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(downloadRoot);
@@ -126,14 +165,16 @@ internal static class Program
             client.DefaultRequestHeaders.UserAgent.ParseAdd("OliviaLetterUpdater/1.3");
 
             var downloadedParts = new List<string>(UpgradeParts.Length);
-            foreach (var part in UpgradeParts)
+            for (var index = 0; index < UpgradeParts.Length; index++)
             {
+                var part = UpgradeParts[index];
                 var target = Path.Combine(downloadRoot, part);
-                DownloadPart(client, part, target);
+                DownloadPart(client, part, target, progress, index, UpgradeParts.Length);
                 downloadedParts.Add(target);
             }
 
             var zipPath = Path.Combine(downloadRoot, "OliviaLetterOverlay-1.3-upgrade-win-x64.zip");
+            progress.Report("正在整理升级包", "正在合并下载分卷…", 91);
             using (var output = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
             {
                 foreach (var part in downloadedParts)
@@ -144,6 +185,7 @@ internal static class Program
             }
 
             var extractRoot = Path.Combine(downloadRoot, "package");
+            progress.Report("正在整理升级包", "正在解压升级文件…", 95);
             ZipFile.ExtractToDirectory(zipPath, extractRoot);
             var payloadRoot = Path.Combine(extractRoot, "installer", "payload");
             if (!File.Exists(Path.Combine(payloadRoot, "OliviaLetterOverlay.exe")))
@@ -166,7 +208,13 @@ internal static class Program
         }
     }
 
-    private static void DownloadPart(HttpClient client, string fileName, string target)
+    private static void DownloadPart(
+        HttpClient client,
+        string fileName,
+        string target,
+        UpdaterProgress progress,
+        int partIndex,
+        int partCount)
     {
         var errors = new List<string>();
         foreach (var mirror in UpdateMirrors)
@@ -184,7 +232,23 @@ internal static class Program
 
                 using var input = response.Content.ReadAsStreamAsync().GetAwaiter().GetResult();
                 using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None);
-                input.CopyTo(output);
+                var totalBytes = response.Content.Headers.ContentLength;
+                var copiedBytes = 0L;
+                var buffer = new byte[256 * 1024];
+                int read;
+                while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    output.Write(buffer, 0, read);
+                    copiedBytes += read;
+                    var partProgress = totalBytes is > 0
+                        ? (int)Math.Clamp(copiedBytes * 100L / totalBytes.Value, 0, 100)
+                        : 0;
+                    var overallProgress = (partIndex * 100 + partProgress) / partCount;
+                    var detail = totalBytes is > 0
+                        ? $"正在下载第 {partIndex + 1}/{partCount} 个分卷：{FormatBytes(copiedBytes)} / {FormatBytes(totalBytes.Value)}"
+                        : $"正在下载第 {partIndex + 1}/{partCount} 个分卷：{FormatBytes(copiedBytes)}";
+                    progress.Report("正在下载升级包", detail, overallProgress, marquee: totalBytes is not > 0);
+                }
                 Log($"DOWNLOAD_END file={fileName} bytes={new FileInfo(target).Length}");
                 return;
             }
@@ -199,6 +263,15 @@ internal static class Program
             "无法下载升级包分卷 " + fileName +
             "。请确认网络正常，或下载全部分卷后解压再运行更新器。\n" +
             string.Join("\n", errors));
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        const double kilo = 1024d;
+        const double mega = kilo * 1024d;
+        return bytes >= mega
+            ? $"{bytes / mega:0.0} MB"
+            : $"{bytes / kilo:0} KB";
     }
 
     private static void StopRunningApplication()
