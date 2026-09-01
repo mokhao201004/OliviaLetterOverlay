@@ -20,6 +20,7 @@
     <Compile Remove="tests\**\*.cs" />
     <Compile Remove="installer\**\*.cs" />
     <Compile Remove="release\**\*.cs" />
+    <Compile Remove="Updater\**\*.cs" />
     <Page Remove="tests\**\*.xaml" />
     <ApplicationDefinition Remove="tests\**\*.xaml" />
     <None Remove="Assets\composer-paper.png" />
