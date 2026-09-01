@@ -272,7 +272,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
                 _decoder.StopAndRelease();
             }
 
-            _decoder.Open(videoPath, IsLooping, _renderer.Device, _renderer.RenderWidth, _renderer.RenderHeight);
+            _decoder.Open(videoPath, IsLooping, _renderer.Device);
             _renderer.RenderBlack();
             _firstFrameReady = false;
             _hasVideo = true;
@@ -775,7 +775,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
                         }
                         else
                         {
-                            _renderer.PresentFrame(preparedPixels!, _decoder.FrameWidth, _decoder.FrameHeight);
+                            _renderer.PresentFrame(preparedPixels!, _decoder.Width, _decoder.Height);
                         }
                     }
                     finally
@@ -853,7 +853,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
                     }
                     else
                     {
-                        _renderer.PresentFrame(pixels!, _decoder.FrameWidth, _decoder.FrameHeight);
+                        _renderer.PresentFrame(pixels!, _decoder.Width, _decoder.Height);
                     }
                 }
                 finally
@@ -1015,7 +1015,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
             else if (!string.IsNullOrWhiteSpace(_startupVideoPath))
             {
                 _decoder.StopAndRelease();
-                _decoder.Open(_startupVideoPath, IsLooping, _renderer.Device, _renderer.RenderWidth, _renderer.RenderHeight);
+                _decoder.Open(_startupVideoPath, IsLooping, _renderer.Device);
             }
 
             _firstFrameReady = false;
