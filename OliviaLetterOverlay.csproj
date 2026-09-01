@@ -13,6 +13,7 @@
     <ApplicationIcon>Assets\olivia.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DefaultItemExcludes>$(DefaultItemExcludes);obj-next\**</DefaultItemExcludes>
   </PropertyGroup>
 

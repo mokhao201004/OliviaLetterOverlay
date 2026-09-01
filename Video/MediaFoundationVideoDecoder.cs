@@ -92,6 +92,8 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     private long _lastCounterDecoded;
     private double _lastCounterDecodeMilliseconds;
     private double _sourceFrameRate;
+    private int[]? _rgbScaleX;
+    private int[]? _rgbScaleY;
     private long _decodedFrameCount;
     private long _presentedFrameCount;
     private long _lastCounterPresented;
@@ -113,6 +115,11 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
     public int Width { get; private set; }
     public int Height { get; private set; }
+    // Width/Height describe the negotiated Source Reader type.  FrameWidth/
+    // FrameHeight describe the RGB32 buffer handed to the existing queue and
+    // renderer; they may be smaller when a CPU downscale is active.
+    public int FrameWidth { get; private set; }
+    public int FrameHeight { get; private set; }
     public double PositionSeconds => Volatile.Read(ref _positionSeconds);
     public double DurationSeconds { get; private set; }
     public bool IsPlaying
@@ -164,6 +171,47 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
 
     private readonly record struct VideoFrame(byte[]? Pixels, Vortice.Direct3D11.ID3D11Texture2D? Texture, uint SubresourceIndex, long PresentationTime100Ns, long Duration100Ns);
 
+    private static int[] BuildScaleMap(int targetLength, int sourceLength)
+    {
+        var map = new int[targetLength];
+        for (var index = 0; index < targetLength; index++)
+        {
+            map[index] = Math.Min(sourceLength - 1, (int)((long)index * sourceLength / targetLength));
+        }
+
+        return map;
+    }
+
+    private static unsafe void ScaleRgb32(IntPtr source, int sourceLength, int sourceWidth, int sourceHeight, byte[] destination, int targetWidth, int targetHeight, int[] scaleX, int[] scaleY)
+    {
+        var sourceStride = checked(sourceWidth * 4);
+        var requiredSourceLength = checked(sourceStride * sourceHeight);
+        if (sourceLength < requiredSourceLength)
+        {
+            throw new InvalidDataException($"RGB32 buffer too small for negotiated source {sourceWidth}x{sourceHeight}: {sourceLength} < {requiredSourceLength}");
+        }
+
+        fixed (byte* destinationPointer = destination)
+        {
+            var sourcePointer = (byte*)source;
+            var destinationStride = checked(targetWidth * 4);
+            for (var y = 0; y < targetHeight; y++)
+            {
+                var sourceRow = sourcePointer + checked((nuint)(scaleY[y] * sourceStride));
+                var destinationRow = destinationPointer + checked((nuint)(y * destinationStride));
+                for (var x = 0; x < targetWidth; x++)
+                {
+                    var sourcePixel = sourceRow + checked((nuint)(scaleX[x] * 4));
+                    var destinationPixel = destinationRow + (x * 4);
+                    destinationPixel[0] = sourcePixel[0];
+                    destinationPixel[1] = sourcePixel[1];
+                    destinationPixel[2] = sourcePixel[2];
+                    destinationPixel[3] = sourcePixel[3];
+                }
+            }
+        }
+    }
+
     public bool UsesGpuSurface => Volatile.Read(ref _gpuSurfacePipelineActive);
 
     public MediaFoundationVideoDecoder()
@@ -171,7 +219,39 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         GpuPipelineDiagnostics.SetSnapshotProvider(() => $"VideoQueueDepth={VideoQueueDepth} LastDecodeAgoMs={LastDecodeAgeMilliseconds:0.0} LastAudioSubmitAgoMs={LastAudioSubmitAgeMilliseconds:0.0}");
     }
 
-    public void Open(string path, bool loop, Vortice.Direct3D11.ID3D11Device? renderDevice = null)
+    private readonly record struct FrameSize(int Width, int Height);
+
+    private static FrameSize? CalculateDownscaledSize(uint sourceWidth, uint sourceHeight, int targetWidth, int targetHeight)
+    {
+        if (sourceWidth == 0 || sourceHeight == 0 || targetWidth <= 0 || targetHeight <= 0
+            || (sourceWidth <= targetWidth && sourceHeight <= targetHeight))
+        {
+            return null;
+        }
+
+        var scale = Math.Min((double)targetWidth / sourceWidth, (double)targetHeight / sourceHeight);
+        if (scale >= 1)
+        {
+            return null;
+        }
+
+        var width = Math.Max(1, (int)Math.Floor(sourceWidth * scale));
+        var height = Math.Max(1, (int)Math.Floor(sourceHeight * scale));
+        // Keep common video dimensions even for chroma-aware MF converters.
+        if (width > 1 && (width & 1) != 0)
+        {
+            width--;
+        }
+
+        if (height > 1 && (height & 1) != 0)
+        {
+            height--;
+        }
+
+        return new FrameSize(width, height);
+    }
+
+    public void Open(string path, bool loop, Vortice.Direct3D11.ID3D11Device? renderDevice = null, int targetWidth = 0, int targetHeight = 0)
     {
         ThrowIfDisposed();
         path = System.Environment.ExpandEnvironmentVariables(path);
@@ -290,11 +370,23 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         DiagnosticLog.Write("startup", $"AudioStreamSelected={HasAudio}");
 
         var inputSubtype = Guid.Empty;
+        var sourceWidth = 0u;
+        var sourceHeight = 0u;
         IMFMediaType? nativeType = null;
         try
         {
             nativeType = _reader.GetNativeMediaType(SourceReaderIndex.FirstVideoStream, 0);
             inputSubtype = TryGetGuid(nativeType, MediaTypeAttributeKeys.Subtype);
+            try
+            {
+                var nativeFrameSize = nativeType.GetUInt64(MediaTypeAttributeKeys.FrameSize);
+                MediaFactory.UnpackSize(nativeFrameSize, out sourceWidth, out sourceHeight);
+            }
+            catch
+            {
+                sourceWidth = 0;
+                sourceHeight = 0;
+            }
             DiagnosticLog.Write("media-foundation", $"native {DescribeColorMetadata(nativeType)}");
         }
         catch (Exception ex)
@@ -310,7 +402,35 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         outputType.Set(MediaTypeAttributeKeys.MajorType, MediaTypeGuids.Video);
         _outputSubtype = GpuVideoPipelineEnabled && dxgiManagerAttached ? Nv12Subtype : VideoFormatGuids.Rgb32;
         outputType.Set(MediaTypeAttributeKeys.Subtype, _outputSubtype);
+        var requestedOutputSize = CalculateDownscaledSize(sourceWidth, sourceHeight, targetWidth, targetHeight);
         _reader.SetCurrentMediaType(SourceReaderIndex.FirstVideoStream, outputType);
+
+        var downscaleApplied = false;
+        if (_outputSubtype == VideoFormatGuids.Rgb32 && requestedOutputSize is { } scaledSize)
+        {
+            // Negotiate the proven RGB32 output first, then ask that already
+            // accepted type for a smaller frame size.  Some Source Reader
+            // converters reject an under-specified RGB32 type when FrameSize
+            // is supplied before the initial negotiation; keeping the first
+            // negotiation intact lets us fall back to native RGB32 safely.
+            using var resizedType = _reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream);
+            resizedType.Set(MediaTypeAttributeKeys.FrameSize,
+                MediaFactory.PackSize((uint)scaledSize.Width, (uint)scaledSize.Height));
+            resizedType.Set(MediaTypeAttributeKeys.SampleSize,
+                checked((uint)(scaledSize.Width * scaledSize.Height * 4)));
+            resizedType.Set(MediaTypeAttributeKeys.DefaultStride,
+                checked((uint)(scaledSize.Width * 4)));
+            try
+            {
+                _reader.SetCurrentMediaType(SourceReaderIndex.FirstVideoStream, resizedType);
+                downscaleApplied = true;
+                DiagnosticLog.Write("media-foundation", $"rgb32 downscale applied source={sourceWidth}x{sourceHeight} target={targetWidth}x{targetHeight} output={scaledSize.Width}x{scaledSize.Height}");
+            }
+            catch (Exception exception)
+            {
+                DiagnosticLog.Write("media-foundation", $"rgb32 downscale unavailable; keeping native output source={sourceWidth}x{sourceHeight} target={targetWidth}x{targetHeight} reason={exception.GetType().Name}:{exception.Message}");
+            }
+        }
         DiagnosticLog.Write("DECODER_INFO", $"RGB32OutputPreserved={(_outputSubtype == VideoFormatGuids.Rgb32)} HardwareDecodeExperimentEnabled={HardwareDecodeExperimentEnabled}");
 
         using var currentType = _reader.GetCurrentMediaType(SourceReaderIndex.FirstVideoStream);
@@ -318,9 +438,37 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         MediaFactory.UnpackSize(packedSize, out var width, out var height);
         Width = checked((int)width);
         Height = checked((int)height);
+        var queueSize = downscaleApplied && requestedOutputSize is { } appliedSize
+            ? appliedSize
+            : requestedOutputSize is { } requestedSize && (Width != requestedSize.Width || Height != requestedSize.Height)
+                ? requestedSize
+                : new FrameSize(Width, Height);
+        FrameWidth = queueSize.Width;
+        FrameHeight = queueSize.Height;
+        DiagnosticLog.Write("media-foundation", $"rgb32 queue dimensions source={sourceWidth}x{sourceHeight} requested={requestedOutputSize?.Width.ToString() ?? "native"}x{requestedOutputSize?.Height.ToString() ?? "native"} actual={Width}x{Height} queue={FrameWidth}x{FrameHeight} downscale_applied={downscaleApplied} bytes_per_frame={checked(FrameWidth * FrameHeight * 4)}");
+        if (_outputSubtype == VideoFormatGuids.Rgb32 && (FrameWidth != Width || FrameHeight != Height))
+        {
+            _rgbScaleX = BuildScaleMap(FrameWidth, Width);
+            _rgbScaleY = BuildScaleMap(FrameHeight, Height);
+        }
+        else
+        {
+            _rgbScaleX = null;
+            _rgbScaleY = null;
+        }
         var decoderCandidates = LogDecoderCandidates(inputSubtype);
         _sourceFrameRate = TryGetFrameRate(currentType);
         LogVideoDecoderChain(_reader, inputSubtype, currentType, decoderCandidates, dxgiManagerAttached);
+        var negotiatedStride = 0;
+        try
+        {
+            negotiatedStride = unchecked((int)currentType.GetUInt32(MediaTypeAttributeKeys.DefaultStride));
+        }
+        catch
+        {
+            // Some Source Reader converters do not expose MF_MT_DEFAULT_STRIDE.
+        }
+        DiagnosticLog.Write("media-foundation", $"rgb32 negotiated type size={Width}x{Height} stride={negotiatedStride} sample_size={TryGetUInt32(currentType, MediaTypeAttributeKeys.SampleSize, 0)}");
         try
         {
             var durationKey = new MediaAttributeKey<ulong>(PresentationDescriptionAttributeKeys.Duration);
@@ -1177,19 +1325,51 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             using (ThreadCpuDiagnostics.StartActivity("Olivia.VideoConvert"))
             {
                 using var buffer = sample.ConvertToContiguousBuffer();
-                buffer.Lock(out var data, out _, out var currentLength);
-                var expectedLength = checked(Width * Height * 4);
+                buffer.Lock(out var data, out var maxLength, out var currentLength);
+                if (!_firstFrameLogged)
+                {
+                    DiagnosticLog.Write("media-foundation", $"rgb32 sample buffer max_length={maxLength} current_length={currentLength} negotiated={Width}x{Height}");
+                }
+                var scaled = _rgbScaleX is not null && _rgbScaleY is not null;
+                // Only the reported current length contains valid sample
+                // bytes; MaxLength is merely the allocation bound and may
+                // include unwritten padding.
+                var sourceLength = currentLength;
+                if (scaled && sourceLength < checked(Width * Height * 4))
+                {
+                    // Keep the proven native-size path if a converter returns
+                    // a buffer that is shorter than its negotiated RGB32
+                    // dimensions.  Never read past the MF buffer and never
+                    // leave the decode thread failed because of the optional
+                    // downscale optimization.
+                    DiagnosticLog.Write("media-foundation", $"rgb32 downscale disabled for session; buffer_length={sourceLength} required={checked(Width * Height * 4)}");
+                    FrameWidth = Width;
+                    FrameHeight = Height;
+                    _rgbScaleX = null;
+                    _rgbScaleY = null;
+                    scaled = false;
+                }
+                var expectedLength = checked(FrameWidth * FrameHeight * 4);
                 byte[]? pixels = null;
                 var queuedBuffer = false;
                 var signalBufferAvailable = false;
                 try
                 {
                     pixels = ArrayPool<byte>.Shared.Rent(expectedLength);
-                    var copyLength = Math.Min(expectedLength, currentLength);
-                    Marshal.Copy(data, pixels, 0, copyLength);
-                    if (copyLength < expectedLength)
+                    var copyLength = 0;
+                    if (scaled)
                     {
-                        pixels.AsSpan(copyLength, expectedLength - copyLength).Clear();
+                        ScaleRgb32(data, sourceLength, Width, Height, pixels, FrameWidth, FrameHeight, _rgbScaleX!, _rgbScaleY!);
+                        copyLength = expectedLength;
+                    }
+                    else
+                    {
+                        copyLength = Math.Min(expectedLength, currentLength);
+                        Marshal.Copy(data, pixels, 0, copyLength);
+                        if (copyLength < expectedLength)
+                        {
+                            pixels.AsSpan(copyLength, expectedLength - copyLength).Clear();
+                        }
                     }
                     if (!_firstFrameLogged)
                     {
@@ -1198,7 +1378,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                         var b1 = copyLength > 1 ? pixels[1] : (byte)0;
                         var b2 = copyLength > 2 ? pixels[2] : (byte)0;
                         var b3 = copyLength > 3 ? pixels[3] : (byte)0;
-                        DiagnosticLog.Write("media-foundation", $"first-frame bytes BGRA={b0:X2},{b1:X2},{b2:X2},{b3:X2} layout=MF_RGB32_memory_B,G,R,A nv12Planes=not-present");
+                        DiagnosticLog.Write("media-foundation", $"first-frame bytes BGRA={b0:X2},{b1:X2},{b2:X2},{b3:X2} layout=MF_RGB32_memory_B,G,R,A queue={FrameWidth}x{FrameHeight} scale={(scaled ? "cpu-nearest" : "none")} nv12Planes=not-present");
                     }
 
                     lock (_videoQueueGate)
