@@ -85,6 +85,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
     private MonitorMetrics _monitorMetrics;
     private IntPtr _monitorHandle;
     private long _renderTickCount;
+    private int _frameTimerRestartQueued;
     private const int DesktopFadeOutDurationMilliseconds = 300;
     private const int VideoFadeInDurationMilliseconds = 800;
     private const int PauseVideoFadeOutDurationMilliseconds = 500;
@@ -98,6 +99,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
         SystemEvents.DisplaySettingsChanged += OnDisplaySettingsChanged;
         _progressTimer.Tick += (_, _) => RefreshPlaybackState();
         _frameTimer.Tick += (_, _) => RenderNextFrame();
+        _decoder.FrameAvailable += Decoder_FrameAvailable;
         _transition.Updated += (_, _) => SetVideoFadeFactor(_transition.FadeFactor);
     }
 
@@ -349,6 +351,30 @@ public sealed class DesktopWallpaperWindow : IDisposable
         PublishPlaybackState();
     }
 
+    private void Decoder_FrameAvailable(object? sender, EventArgs e)
+    {
+        if (_disposed || Interlocked.Exchange(ref _frameTimerRestartQueued, 1) != 0)
+        {
+            return;
+        }
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null)
+        {
+            Interlocked.Exchange(ref _frameTimerRestartQueued, 0);
+            return;
+        }
+
+        _ = dispatcher.BeginInvoke(new Action(() =>
+        {
+            Interlocked.Exchange(ref _frameTimerRestartQueued, 0);
+            if (!_disposed && _hasVideo)
+            {
+                _frameTimer.Start();
+            }
+        }));
+    }
+
     private void CompletePauseTransition()
     {
         if (_transition.State != WallpaperTransitionState.Pausing)
@@ -557,6 +583,7 @@ public sealed class DesktopWallpaperWindow : IDisposable
         }
         _progressTimer.Stop();
         _frameTimer.Stop();
+        _decoder.FrameAvailable -= Decoder_FrameAvailable;
         _transition.Dispose();
         _decoder.Dispose();
         _renderer.Dispose();
@@ -872,6 +899,13 @@ public sealed class DesktopWallpaperWindow : IDisposable
 
                 StartEndingTransition();
                 CompleteEndTransition();
+            }
+            else if (_decoder.VideoQueueDepth == 0
+                && _transition.State == WallpaperTransitionState.Playing)
+            {
+                // A decode wake-up restarts the timer when the queue receives
+                // its first frame, avoiding empty 16 ms scheduler ticks.
+                _frameTimer.Stop();
             }
 
             CheckVideoBufferHealth();

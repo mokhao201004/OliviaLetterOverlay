@@ -158,6 +158,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
     public double MasterClockSeconds => GetMasterClockSeconds();
     public double AudioPositionSeconds => _audioOutput?.PlaybackPositionSeconds ?? 0;
     public double SourceFrameRate => _sourceFrameRate;
+    public event EventHandler? FrameAvailable;
 
     private int _isPlaying;
 
@@ -1102,10 +1103,13 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
             {
                 if (TryGetGpuSurface(sample, frameId, out var texture, out var subresourceIndex))
                 {
+                    var queuedGpu = false;
+                    var signalFrameAvailable = false;
                     lock (_videoQueueGate)
                     {
                         if (_videoQueue.Count < MaxVideoQueueDepth)
                         {
+                            signalFrameAvailable = _videoQueue.Count == 0;
                             _gpuSurfacePipelineActive = true;
                             _videoQueue.Enqueue(new VideoFrame(null, texture, subresourceIndex, presentationTime, duration));
                             Interlocked.Increment(ref _decodedFrameCount);
@@ -1115,9 +1119,18 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                                 _startupFirstSampleLogged = true;
                                 DiagnosticLog.Write("startup", $"FirstVideoSamplePTS={presentationTime / 10_000_000d:0.###} first_frame_gpu_surface=true queue_depth={_videoQueue.Count} startup_ms={_startupStopwatch?.Elapsed.TotalMilliseconds:0.0}");
                             }
-
-                            return true;
+                            queuedGpu = true;
                         }
+                    }
+
+                    if (queuedGpu)
+                    {
+                        if (signalFrameAvailable)
+                        {
+                            NotifyFrameAvailable();
+                        }
+
+                        return true;
                     }
 
                     if (texture is not null)
@@ -1135,15 +1148,22 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 }
 
                 var queuedFallback = false;
+                var signalFallbackAvailable = false;
                 lock (_videoQueueGate)
                 {
                     if (_videoQueue.Count < MaxVideoQueueDepth)
                     {
+                        signalFallbackAvailable = _videoQueue.Count == 0;
                         _videoQueue.Enqueue(new VideoFrame(fallbackPixels, null, 0, presentationTime, duration));
                         Interlocked.Increment(ref _decodedFrameCount);
                         Volatile.Write(ref _decodedVideoPositionSeconds, presentationTime / 10_000_000d);
                         queuedFallback = true;
                     }
+                }
+
+                if (queuedFallback && signalFallbackAvailable)
+                {
+                    NotifyFrameAvailable();
                 }
 
                 if (!queuedFallback)
@@ -1161,6 +1181,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                 var expectedLength = checked(Width * Height * 4);
                 byte[]? pixels = null;
                 var queuedBuffer = false;
+                var signalBufferAvailable = false;
                 try
                 {
                     pixels = ArrayPool<byte>.Shared.Rent(expectedLength);
@@ -1184,6 +1205,7 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                     {
                         if (_videoQueue.Count < MaxVideoQueueDepth)
                         {
+                            signalBufferAvailable = _videoQueue.Count == 0;
                             _videoQueue.Enqueue(new VideoFrame(pixels, null, 0, presentationTime, duration));
                             Interlocked.Increment(ref _decodedFrameCount);
                             Volatile.Write(ref _decodedVideoPositionSeconds, presentationTime / 10_000_000d);
@@ -1194,8 +1216,17 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
                             }
 
                             queuedBuffer = true;
-                            return true;
                         }
+                    }
+
+                    if (queuedBuffer)
+                    {
+                        if (signalBufferAvailable)
+                        {
+                            NotifyFrameAvailable();
+                        }
+
+                        return true;
                     }
                 }
                 finally
@@ -1231,6 +1262,18 @@ internal sealed class MediaFoundationVideoDecoder : IDisposable
         }
 
         return false;
+    }
+
+    private void NotifyFrameAvailable()
+    {
+        try
+        {
+            FrameAvailable?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("video", $"FrameAvailable notification failed: {ex.Message}");
+        }
     }
 
     private bool TryGetGpuSurface(IMFSample sample, long frameId, out Vortice.Direct3D11.ID3D11Texture2D? texture, out uint subresourceIndex)
