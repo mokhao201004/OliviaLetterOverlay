@@ -3,6 +3,10 @@ chcp 65001 >nul
 cd /d "%~dp0"
 echo == Olivia Letter 信箱升级程序 ==
 echo 请先关闭旧版信箱，升级完成前不要关闭此窗口。
+if exist "%~dp0OliviaLetterUpdater.exe" (
+    "%~dp0OliviaLetterUpdater.exe"
+    exit /b %errorlevel%
+)
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0installer\Install.ps1" -Launch
 if errorlevel 1 (
     echo.

@@ -30,7 +30,7 @@
 
 日常使用不需要运行任何脚本。想让信箱随游戏自动出现，再按 [脚本说明](脚本说明.txt) 的“二、想让信箱在游戏出现时自动弹出”操作。
 
-如果电脑上已经安装过旧版，也可以直接下载专用升级包 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，解压后双击根目录的 `升级 OliviaLetterOverlay.cmd`。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
+如果电脑上已经安装过旧版，也可以直接下载专用升级包 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，解压后双击根目录的 `OliviaLetterUpdater.exe`（也可双击 `升级 OliviaLetterOverlay.cmd`）。升级包会覆盖程序文件并保留本机数据，不需要重新导入信件、记忆或 API Key。
 
 ### 已有旧版如何升级
 
