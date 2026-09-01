@@ -16,8 +16,8 @@
 
 ## v1.3 发布包
 
-- 提供 `OliviaLetterOverlay-1.3-win-x64.zip`，Windows 10/11 x64 可直接解压运行。
-- 提供 `OliviaLetterOverlay-1.3-upgrade-win-x64.zip`，覆盖程序文件但保留角色、信件、记忆、API Key 和本地音乐设置。
+- 提供 `OliviaLetterOverlay-1.3-win-x64-with-updater.7z.001/.002`，Windows 10/11 x64 可直接解压运行。
+- 提供 `OliviaLetterOverlay-1.3-upgrade-win-x64-with-updater.7z.001/.002`，覆盖程序文件但保留角色、信件、记忆、API Key 和本地音乐设置。
 - 发布包内含安装、升级、伴随启动和卸载脚本，以及 SHA256 校验文件。
 
 ## v1.2 新增与修复
